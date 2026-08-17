@@ -16,6 +16,8 @@ run_data_report(
   operator = NULL,
   check_info = NULL,
   query_column = TRUE,
+  status_output = c("folders", "column"),
+  include_resolved = FALSE,
   write_readable = FALSE,
   verbose = 2L
 )
@@ -62,6 +64,24 @@ query log)? Default \code{TRUE} when check info is available. The column is
 added after any before/after comparison, so rewording a query never makes
 findings read as new or resolved. A check returning its own \code{query} column
 is an error while check info is in use.}
+
+\item{status_output}{How a compared report presents the change labelling.
+\code{"folders"} (the default) writes sets side by side: \verb{full/} (every current
+finding, new and unchanged) and \verb{new/} (findings not in \code{before}), plus
+\verb{resolved/} when \code{include_resolved = TRUE}; the written files carry no
+\code{status} column because the folder says which set a row is in. Findings
+in \verb{full/} but not in \verb{new/} are unchanged from \code{before}. \code{"column"}
+writes \verb{full/} with a \code{status} column plus an \verb{update/} set of the
+changed rows. Ignored when there is no \code{before} snapshot. The returned
+\code{sheets} keep the \code{status} column either way, and the manifest records the
+per-check tallies (including resolved) either way.}
+
+\item{include_resolved}{Also write the findings resolved since \code{before}
+(rows present in \code{before} but gone from \code{after})? Default \code{FALSE}: a
+resolved row shows the BEFORE snapshot's data values, stale against the
+current extract, so resolved rows are left out unless asked for. When
+\code{TRUE}, \code{"folders"} adds a \verb{resolved/} set and \code{"column"} keeps resolved
+rows (labelled \code{resolved}) in \verb{full/} and the \verb{update/} set.}
 
 \item{write_readable}{Also write per-check CSV/TXT copies of the findings?
 Default \code{FALSE}: the delivered record is the workbook (one worksheet per

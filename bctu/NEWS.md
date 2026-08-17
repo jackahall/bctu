@@ -1,3 +1,19 @@
+# bctu 0.17.0
+
+## Changes
+
+* Compared reports (`save_dvr()` with a `before` snapshot) now default to
+  writing the change labelling as separate folders: `full/` (current findings,
+  new and unchanged) and `new/`, with no `status` column in the written files.
+  The previous presentation (a `status` column on `full/` plus an `update/`
+  set of the changed rows) is available with `status_output = "column"`.
+* Resolved findings are no longer written by default in either mode: a
+  resolved row shows the before snapshot's data values, which are stale
+  against the current extract. `include_resolved = TRUE` writes them (a
+  `resolved/` folder set, or `resolved`-labelled rows in column mode).
+  Per-check new/unchanged/resolved tallies are always recorded in the
+  manifest, which also records the mode and whether resolved was included.
+
 # bctu 0.16.6
 
 ## Fixes

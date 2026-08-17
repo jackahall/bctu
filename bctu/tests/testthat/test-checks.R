@@ -78,7 +78,7 @@ test_that("save_dvr writes a full set and an auditable manifest, trial name from
   expect_null(man$before_snapshot)
 })
 
-test_that("save_dvr with a before snapshot records the comparison and an update set", {
+test_that("save_dvr with a before snapshot writes full/new/resolved folders by default", {
   skip_if_not_installed("openxlsx")
   store   <- withr::local_tempdir()
   out_dir <- withr::local_tempdir()
@@ -98,13 +98,91 @@ test_that("save_dvr with a before snapshot records the comparison and an update 
   res <- save_dvr(dvp, after = snapB, before = snapA, paths = out_dir,
                   operator = "tester", write_readable = TRUE, verbose = 0L)
   expect_true(res$compared)
+  expect_equal(res$status_output, "folders")
+  expect_false(res$include_resolved)
   expect_true("status" %in% names(res$sheets$outcome_positive))
-  expect_true(dir.exists(file.path(res$dirs[[1]], "update")))
+  expect_true(dir.exists(file.path(res$dirs[[1]], "full")))
+  expect_true(dir.exists(file.path(res$dirs[[1]], "new")))
+  expect_false(dir.exists(file.path(res$dirs[[1]], "resolved")))
+  expect_false(dir.exists(file.path(res$dirs[[1]], "update")))
+
+  # The folders carry the status, so the written files have no status column;
+  # full = unchanged + new, and resolved rows (stale before-values) are absent.
+  full_csv <- utils::read.csv(file.path(res$dirs[[1]], "full", "outcome_positive.csv"))
+  expect_false("status" %in% names(full_csv))
+  st <- res$sheets$outcome_positive$status
+  expect_equal(nrow(full_csv), sum(st %in% c("new", "unchanged")))
+  new_csv <- utils::read.csv(file.path(res$dirs[[1]], "new", "outcome_positive.csv"))
+  expect_false("status" %in% names(new_csv))
+  expect_equal(nrow(new_csv), sum(st == "new"))
 
   man <- yaml::read_yaml(file.path(res$dirs[[1]], "manifest.yml"))
   expect_true(man$compared)
+  expect_equal(man$status_output, "folders")
+  expect_false(man$include_resolved)
   expect_equal(man$before_snapshot$id, attr(snapA, "id"))
   expect_equal(man$after_snapshot$id, attr(snapB, "id"))
+
+  # include_resolved = TRUE adds the resolved/ set (status still folder-borne).
+  out_dir2 <- withr::local_tempdir()
+  res2 <- save_dvr(dvp, after = snapB, before = snapA, paths = out_dir2,
+                   operator = "tester", include_resolved = TRUE,
+                   write_readable = TRUE, verbose = 0L)
+  expect_true(dir.exists(file.path(res2$dirs[[1]], "resolved")))
+  res_csv <- utils::read.csv(file.path(res2$dirs[[1]], "resolved", "outcome_positive.csv"))
+  expect_false("status" %in% names(res_csv))
+  expect_equal(nrow(res_csv), sum(st == "resolved"))
+  expect_true(yaml::read_yaml(file.path(res2$dirs[[1]], "manifest.yml"))$include_resolved)
+})
+
+test_that("save_dvr status_output = 'column' keeps the status column and update set", {
+  skip_if_not_installed("openxlsx")
+  store   <- withr::local_tempdir()
+  out_dir <- withr::local_tempdir()
+
+  dvp <- function(data) {
+    hit <- data$records$record_id[data$records$outcome == 1]
+    list(outcome_positive = data.frame(record_id = hit,
+                                       reason = rep("outcome positive", length(hit))))
+  }
+
+  snapA <- take_snapshot(datasource_example("redcap", n = 40L, seed = 1L),
+                         store = store, verbose = 0L)
+  Sys.sleep(1.1)
+  snapB <- take_snapshot(datasource_example("redcap", n = 40L, seed = 3L),
+                         store = store, verbose = 0L)
+
+  res <- save_dvr(dvp, after = snapB, before = snapA, paths = out_dir,
+                  operator = "tester", status_output = "column",
+                  write_readable = TRUE, verbose = 0L)
+  expect_true(res$compared)
+  expect_equal(res$status_output, "column")
+  expect_true("status" %in% names(res$sheets$outcome_positive))
+  expect_true(dir.exists(file.path(res$dirs[[1]], "update")))
+  expect_false(dir.exists(file.path(res$dirs[[1]], "new")))
+  expect_false(dir.exists(file.path(res$dirs[[1]], "resolved")))
+
+  # Default excludes resolved rows (stale before-values) from full/ and update/.
+  full_csv <- utils::read.csv(file.path(res$dirs[[1]], "full", "outcome_positive.csv"))
+  expect_true("status" %in% names(full_csv))
+  expect_false("resolved" %in% full_csv$status)
+  upd_csv <- utils::read.csv(file.path(res$dirs[[1]], "update", "outcome_positive.csv"))
+  expect_true(all(upd_csv$status == "new"))
+
+  man <- yaml::read_yaml(file.path(res$dirs[[1]], "manifest.yml"))
+  expect_true(man$compared)
+  expect_equal(man$status_output, "column")
+  expect_false(man$include_resolved)
+
+  # include_resolved = TRUE restores the resolved-labelled rows.
+  out_dir2 <- withr::local_tempdir()
+  res2 <- save_dvr(dvp, after = snapB, before = snapA, paths = out_dir2,
+                   operator = "tester", status_output = "column",
+                   include_resolved = TRUE, write_readable = TRUE, verbose = 0L)
+  full2 <- utils::read.csv(file.path(res2$dirs[[1]], "full", "outcome_positive.csv"))
+  expect_true("resolved" %in% full2$status)
+  upd2 <- utils::read.csv(file.path(res2$dirs[[1]], "update", "outcome_positive.csv"))
+  expect_true(all(upd2$status %in% c("new", "resolved")))
 })
 
 test_that("save_dvr writes to every path in paths", {
@@ -162,14 +240,15 @@ test_that("a resolved finding whose record was removed from after is still sited
 
   res <- save_dvr(dvp, after = after, before = before, paths = out_dir,
                   id_col = "record_id", site_col = "site",
-                  write_readable = TRUE, verbose = 0L)
+                  include_resolved = TRUE, write_readable = TRUE, verbose = 0L)
 
-  full <- file.path(res$dirs[[1]], "full")
-  site_a_csv <- file.path(full, "sites", "Site_A", "demo.csv")
+  resolved <- file.path(res$dirs[[1]], "resolved")
+  site_a_csv <- file.path(resolved, "sites", "Site_A", "demo.csv")
   expect_true(file.exists(site_a_csv))
   rows <- utils::read.csv(site_a_csv, stringsAsFactors = FALSE)
   expect_true("E001" %in% rows$record_id)
-  expect_false(dir.exists(file.path(full, "sites", "NO_SITE")))
+  expect_false(dir.exists(file.path(resolved, "sites", "NO_SITE")))
+  expect_false(dir.exists(file.path(res$dirs[[1]], "full", "sites", "NO_SITE")))
 })
 
 test_that("write_findings_readable de-duplicates filenames that sanitise to the same stem", {

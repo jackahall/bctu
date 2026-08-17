@@ -509,8 +509,11 @@ write_report_set <- function(sheets, snapshot, dir, base_name,
 #' of the same snapshot and version suffixes the leaf folder `_N`, never
 #' silently overwriting. When a `before` snapshot is supplied, each finding
 #' is labelled `new` / `unchanged` / `resolved` by a whole-row comparison of the
-#' two runs (see [compare_dvp()]) and an additional `update/` set of the changed
-#' rows (new or resolved) is written alongside the full set. The trial name is
+#' two runs (see [compare_dvp()]) and the change labelling is written per
+#' `status_output`: a separate `new/` folder alongside `full/` (the default),
+#' or a `status` column plus an `update/` set. Resolved findings show the
+#' `before` snapshot's data values, so they are only written when
+#' `include_resolved = TRUE`. The trial name is
 #' taken from the snapshot itself (see [report_trial_name()]); nothing about the
 #' trial has to be passed in.
 #' @param dvp A DVP function: `function(data)` returning a named list of
@@ -543,6 +546,22 @@ write_report_set <- function(sheets, snapshot, dir, base_name,
 #'   added after any before/after comparison, so rewording a query never makes
 #'   findings read as new or resolved. A check returning its own `query` column
 #'   is an error while check info is in use.
+#' @param status_output How a compared report presents the change labelling.
+#'   `"folders"` (the default) writes sets side by side: `full/` (every current
+#'   finding, new and unchanged) and `new/` (findings not in `before`), plus
+#'   `resolved/` when `include_resolved = TRUE`; the written files carry no
+#'   `status` column because the folder says which set a row is in. Findings
+#'   in `full/` but not in `new/` are unchanged from `before`. `"column"`
+#'   writes `full/` with a `status` column plus an `update/` set of the
+#'   changed rows. Ignored when there is no `before` snapshot. The returned
+#'   `sheets` keep the `status` column either way, and the manifest records the
+#'   per-check tallies (including resolved) either way.
+#' @param include_resolved Also write the findings resolved since `before`
+#'   (rows present in `before` but gone from `after`)? Default `FALSE`: a
+#'   resolved row shows the BEFORE snapshot's data values, stale against the
+#'   current extract, so resolved rows are left out unless asked for. When
+#'   `TRUE`, `"folders"` adds a `resolved/` set and `"column"` keeps resolved
+#'   rows (labelled `resolved`) in `full/` and the `update/` set.
 #' @param write_readable Also write per-check CSV/TXT copies of the findings?
 #'   Default `FALSE`: the delivered record is the workbook (one worksheet per
 #'   check), and `openxlsx` is required up front. The checks index and the YAML
@@ -559,10 +578,14 @@ write_report_set <- function(sheets, snapshot, dir, base_name,
 save_dvr <- function(dvp, after, before = NULL, paths = getwd(),
                      id_col = "record_id", site_col = NULL, version = NULL,
                      operator = NULL, check_info = NULL, query_column = TRUE,
+                     status_output = c("folders", "column"),
+                     include_resolved = FALSE,
                      write_readable = FALSE, verbose = 2L) {
   run_data_report(dvp, after, before, paths, kind = "dvr", id_col = id_col,
                   site_col = site_col, version = version, operator = operator,
                   check_info = check_info, query_column = query_column,
+                  status_output = status_output,
+                  include_resolved = include_resolved,
                   write_readable = write_readable, verbose = verbose)
 }
 
@@ -601,8 +624,11 @@ run_data_report <- function(dvp, after, before = NULL, paths = getwd(),
                             kind = c("dvr", "cdi"), id_col = "record_id",
                             site_col = NULL, version = NULL, operator = NULL,
                             check_info = NULL, query_column = TRUE,
+                            status_output = c("folders", "column"),
+                            include_resolved = FALSE,
                             write_readable = FALSE, verbose = 2L) {
   kind <- match.arg(kind)
+  status_output <- match.arg(status_output)
   if (!requireNamespace("openxlsx", quietly = TRUE))
     cli::cli_abort(c(
       "The {.pkg openxlsx} package is required: the {toupper(kind)} is delivered as one Excel workbook.",
@@ -622,12 +648,30 @@ run_data_report <- function(dvp, after, before = NULL, paths = getwd(),
     if (isTRUE(query_column)) sheets <- add_query_column(sheets, info)
   }
 
-  update_sheets <- NULL
-  if (compared) {
-    update_sheets <- stats::setNames(lapply(sheets, function(d) {
-      if (!("status" %in% names(d)) || nrow(d) == 0L) return(d[0, , drop = FALSE])
-      d[d$status %in% c("new", "resolved"), , drop = FALSE]
-    }), names(sheets))
+  # The written sets, per status_output. "folders" drops the status column from
+  # every written file (the folder a row sits in carries its status); "column"
+  # keeps the column and writes the changed rows as one update/ set. Resolved
+  # rows carry the BEFORE snapshot's data values, so they are written only when
+  # include_resolved is TRUE. The returned `sheets` keep every row and the
+  # status column in both modes.
+  with_status <- function(d, keep, drop_col) {
+    if (!("status" %in% names(d)) || nrow(d) == 0L) d <- d[0, , drop = FALSE]
+    else d <- d[d$status %in% keep, , drop = FALSE]
+    if (drop_col) d$status <- NULL
+    d
+  }
+  full_sheets <- sheets
+  update_sheets <- new_sheets <- resolved_sheets <- NULL
+  if (compared && status_output == "folders") {
+    full_sheets <- lapply(sheets, with_status, c("new", "unchanged"), drop_col = TRUE)
+    new_sheets  <- lapply(sheets, with_status, "new", drop_col = TRUE)
+    if (isTRUE(include_resolved))
+      resolved_sheets <- lapply(sheets, with_status, "resolved", drop_col = TRUE)
+  } else if (compared) {
+    if (!isTRUE(include_resolved))
+      full_sheets <- lapply(sheets, with_status, c("new", "unchanged"), drop_col = FALSE)
+    changed <- if (isTRUE(include_resolved)) c("new", "resolved") else "new"
+    update_sheets <- lapply(sheets, with_status, changed, drop_col = FALSE)
   }
 
   # ---- per-check counts (with status tallies when compared) ----
@@ -684,6 +728,8 @@ run_data_report <- function(dvp, after, before = NULL, paths = getwd(),
     created_utc = iso8601(now),
     operator = operator,
     compared = compared,
+    status_output = if (compared) status_output else NA_character_,
+    include_resolved = if (compared) isTRUE(include_resolved) else NA,
     after_snapshot = snapshot_ref(after),
     before_snapshot = snapshot_ref(before),
     id_col = id_col,
@@ -711,15 +757,26 @@ run_data_report <- function(dvp, after, before = NULL, paths = getwd(),
     }
     dir.create(report_dir, recursive = TRUE, showWarnings = FALSE)
 
-    write_report_set(sheets, after, file.path(report_dir, "full"), base,
+    write_report_set(full_sheets, after, file.path(report_dir, "full"), base,
                      id_col = id_col, site_col = site_col,
                      write_readable = write_readable,
                      before_snapshot = before, check_info = info)
-    if (compared)
+    if (compared && status_output == "folders") {
+      write_report_set(new_sheets, after, file.path(report_dir, "new"),
+                       paste0(base, "_New"), id_col = id_col,
+                       site_col = site_col, write_readable = write_readable,
+                       before_snapshot = before, check_info = info)
+      if (!is.null(resolved_sheets))
+        write_report_set(resolved_sheets, after, file.path(report_dir, "resolved"),
+                         paste0(base, "_Resolved"), id_col = id_col,
+                         site_col = site_col, write_readable = write_readable,
+                         before_snapshot = before, check_info = info)
+    } else if (compared) {
       write_report_set(update_sheets, after, file.path(report_dir, "update"),
                        paste0(base, "_Update"), id_col = id_col,
                        site_col = site_col, write_readable = write_readable,
                        before_snapshot = before, check_info = info)
+    }
     yaml::write_yaml(manifest, file.path(report_dir, manifest_filename))
     written_dirs <- c(written_dirs, report_dir)
   }
@@ -732,6 +789,9 @@ run_data_report <- function(dvp, after, before = NULL, paths = getwd(),
 
   invisible(list(
     dvr_id = dvr_id, kind = kind, trial = trial, dirs = written_dirs,
-    compared = compared, sheets = sheets, update = update_sheets,
+    compared = compared, status_output = if (compared) status_output else NA_character_,
+    include_resolved = if (compared) isTRUE(include_resolved) else NA,
+    sheets = sheets, update = update_sheets,
+    new = new_sheets, resolved = resolved_sheets,
     checks = check_summaries, total_findings = total_rows, manifest = manifest))
 }
