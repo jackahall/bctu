@@ -131,6 +131,14 @@ print.bctu_report <- function(x, ...) {
 #'   DOCX styling; its identity and SHA-256 are recorded. Applies to the DOCX
 #'   output only; it is ignored (but still hashed into the manifest) when
 #'   rendering PDF.
+#' @param orientation Page orientation for the PDF output: `"portrait"` (the
+#'   default) or `"landscape"`. The DOCX orientation comes from the reference
+#'   `template`, not from this argument.
+#' @param margin Page margin for the PDF output, as a LaTeX length string
+#'   (default `"1in"`). Ignored for DOCX (the template governs).
+#' @param toc Include a table of contents (all formats)? Default `FALSE`.
+#' @param number_sections Number the section headings (all formats)? Default
+#'   `FALSE`.
 #' @param extra_destinations Optional character vector of directories to also
 #'   copy the whole rendered bundle into.
 #' @param verbose Verbosity.
@@ -151,11 +159,18 @@ render_report <- function(report, output_dir,
                           formats = c("docx", "pdf"),
                           snapshot = NULL,
                           template = NULL,
+                          orientation = c("portrait", "landscape"),
+                          margin = "1in",
+                          toc = FALSE,
+                          number_sections = FALSE,
                           extra_destinations = NULL,
                           verbose = 2L) {
   if (!inherits(report, "bctu_report"))
     cli::cli_abort("{.arg report} must be a {.cls bctu_report}.")
   formats <- unique(match.arg(formats, c("docx", "pdf"), several.ok = TRUE))
+  orientation <- match.arg(orientation)
+  if (!is_string(margin) || !nzchar(margin))
+    cli::cli_abort("{.arg margin} must be a single LaTeX length string, for example {.val 1in}.")
   pandoc <- Sys.which("pandoc")
   if (!nzchar(pandoc))
     cli::cli_abort(c("pandoc was not found on the PATH.",
@@ -184,9 +199,13 @@ render_report <- function(report, output_dir,
   start <- Sys.time()
   for (fmt in formats) {
     md_path <- file.path(work, paste0(base_name, "-", fmt, ".md"))
-    writeLines(enc2utf8(build_report_markdown(report, fmt, work)), md_path, useBytes = TRUE)
+    writeLines(enc2utf8(build_report_markdown(report, fmt, work,
+                                              orientation = orientation,
+                                              margin = margin)),
+               md_path, useBytes = TRUE)
     out_path <- file.path(output_dir, paste0(base_name, ".", fmt))
-    run_pandoc(pandoc, md_path, out_path, fmt, template)
+    run_pandoc(pandoc, md_path, out_path, fmt, template,
+               toc = toc, number_sections = number_sections)
     if (!file.exists(out_path) || file.info(out_path)$size == 0)
       cli::cli_abort("pandoc produced no {fmt} output at {.file {out_path}}.")
     outputs[[fmt]] <- out_path
@@ -196,8 +215,10 @@ render_report <- function(report, output_dir,
   render_seconds <- round(as.numeric(difftime(Sys.time(), start, units = "secs")), 2)
 
   manifest_path <- file.path(output_dir, "report-manifest.yml")
+  layout <- list(orientation = orientation, margin = margin,
+                 toc = toc, number_sections = number_sections)
   manifest <- build_report_manifest(report, outputs, snapshot, template,
-                                    formats, ver, now, render_seconds)
+                                    formats, ver, now, render_seconds, layout)
   yaml::write_yaml(manifest, manifest_path)
   if (verbose >= 1L)
     cli::cli_alert_success("manifest -> {.file {manifest_path}}")
@@ -215,10 +236,13 @@ render_report <- function(report, output_dir,
 
 #' Run pandoc for one output format
 #' @keywords internal
-run_pandoc <- function(pandoc, md_path, out_path, fmt, template) {
+run_pandoc <- function(pandoc, md_path, out_path, fmt, template,
+                       toc = FALSE, number_sections = FALSE) {
   args <- c(shQuote(md_path), "--from", "markdown",
             "-o", shQuote(out_path), "--standalone",
             paste0("--resource-path=", shQuote(dirname(md_path))))
+  if (isTRUE(toc)) args <- c(args, "--toc")
+  if (isTRUE(number_sections)) args <- c(args, "--number-sections")
   if (fmt == "pdf")
     args <- c(args, "--pdf-engine=xelatex")
   if (fmt == "docx" && !is.null(template))
@@ -237,9 +261,12 @@ run_pandoc <- function(pandoc, md_path, out_path, fmt, template) {
 # --- document assembly (explicit sections -> pandoc markdown) --------------
 #' Assemble the full pandoc-markdown document for one format
 #' @keywords internal
-build_report_markdown <- function(report, format, assets_dir) {
+build_report_markdown <- function(report, format, assets_dir,
+                                  orientation = "portrait", margin = "1in") {
   yaml_header <- c("---",
                    paste0("title: ", yaml_quote(report$title)),
+                   if (format == "pdf")
+                     paste0("geometry: ", yaml_quote(paste0(orientation, ",margin=", margin))),
                    "---", "")
   blocks <- vapply(seq_along(report$sections), function(i)
     render_section(report$sections[[i]], format, assets_dir, i),
@@ -292,7 +319,8 @@ render_figure_section <- function(fig, assets_dir, index) {
 #' Build the provenance manifest for a rendered report
 #' @keywords internal
 build_report_manifest <- function(report, outputs, snapshot, template,
-                                   formats, bctu_version, now, render_seconds) {
+                                   formats, bctu_version, now, render_seconds,
+                                   layout = NULL) {
   snap_block <- list(id = NULL, sha256 = NULL, data_cut_date = NULL)
   if (inherits(snapshot, "bctu_snapshot")) {
     id <- attr(snapshot, "id")
@@ -338,6 +366,7 @@ build_report_manifest <- function(report, outputs, snapshot, template,
       xelatex = if ("pdf" %in% formats) tool_version("xelatex", "--version") else "not used (no PDF)"
     ),
     template   = template_block,
+    layout     = layout,
     snapshot   = snap_block,
     meta       = report$meta,
     sections   = as.list(section_types),

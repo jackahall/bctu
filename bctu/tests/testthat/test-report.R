@@ -139,3 +139,35 @@ test_that("render_table_markdown renders a structurally valid table for zero row
   expect_true(startsWith(lines[1], "+"))
   expect_true(startsWith(lines[length(lines)], "+"))
 })
+
+test_that("build_report_markdown carries geometry for PDF only, per orientation and margin", {
+  report <- bctu_report(
+    title = "Layout Demo",
+    sections = list(h = report_heading("Section one")))
+  pdf_md <- build_report_markdown(report, "pdf", tempdir(),
+                                  orientation = "landscape", margin = "1in")
+  expect_true(grepl('geometry: "landscape,margin=1in"', pdf_md, fixed = TRUE))
+  docx_md <- build_report_markdown(report, "docx", tempdir(),
+                                   orientation = "landscape", margin = "1in")
+  expect_false(grepl("geometry", docx_md, fixed = TRUE))
+  default_md <- build_report_markdown(report, "pdf", tempdir())
+  expect_true(grepl('geometry: "portrait,margin=1in"', default_md, fixed = TRUE))
+})
+
+test_that("render_report records the layout in the manifest and passes toc flags to pandoc", {
+  skip_on_cran()
+  skip_if(!nzchar(Sys.which("pandoc")), "pandoc not on PATH")
+  out <- withr::local_tempdir()
+  report <- bctu_report(
+    title = "Layout Demo",
+    sections = list(h = report_heading("Section one"),
+                    p = report_paragraph("Some text.")))
+  res <- render_report(report, output_dir = out, formats = "docx",
+                       orientation = "landscape", toc = TRUE,
+                       number_sections = TRUE, verbose = 0L)
+  man <- yaml::read_yaml(res$manifest)
+  expect_equal(man$layout$orientation, "landscape")
+  expect_equal(man$layout$margin, "1in")
+  expect_true(man$layout$toc)
+  expect_true(man$layout$number_sections)
+})

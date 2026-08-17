@@ -12,7 +12,8 @@ build_report_manifest(
   formats,
   bctu_version,
   now,
-  render_seconds
+  render_seconds,
+  layout = NULL
 )
 }
 \description{

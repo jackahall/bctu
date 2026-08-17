@@ -10,6 +10,10 @@ render_report(
   formats = c("docx", "pdf"),
   snapshot = NULL,
   template = NULL,
+  orientation = c("portrait", "landscape"),
+  margin = "1in",
+  toc = FALSE,
+  number_sections = FALSE,
   extra_destinations = NULL,
   verbose = 2L
 )
@@ -31,6 +35,18 @@ data-cut date if the snapshot was taken at the cut.}
 DOCX styling; its identity and SHA-256 are recorded. Applies to the DOCX
 output only; it is ignored (but still hashed into the manifest) when
 rendering PDF.}
+
+\item{orientation}{Page orientation for the PDF output: \code{"portrait"} (the
+default) or \code{"landscape"}. The DOCX orientation comes from the reference
+\code{template}, not from this argument.}
+
+\item{margin}{Page margin for the PDF output, as a LaTeX length string
+(default \code{"1in"}). Ignored for DOCX (the template governs).}
+
+\item{toc}{Include a table of contents (all formats)? Default \code{FALSE}.}
+
+\item{number_sections}{Number the section headings (all formats)? Default
+\code{FALSE}.}
 
 \item{extra_destinations}{Optional character vector of directories to also
 copy the whole rendered bundle into.}

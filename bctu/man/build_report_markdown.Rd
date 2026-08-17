@@ -4,7 +4,13 @@
 \alias{build_report_markdown}
 \title{Assemble the full pandoc-markdown document for one format}
 \usage{
-build_report_markdown(report, format, assets_dir)
+build_report_markdown(
+  report,
+  format,
+  assets_dir,
+  orientation = "portrait",
+  margin = "1in"
+)
 }
 \description{
 Assemble the full pandoc-markdown document for one format

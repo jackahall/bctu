@@ -4,7 +4,15 @@
 \alias{run_pandoc}
 \title{Run pandoc for one output format}
 \usage{
-run_pandoc(pandoc, md_path, out_path, fmt, template)
+run_pandoc(
+  pandoc,
+  md_path,
+  out_path,
+  fmt,
+  template,
+  toc = FALSE,
+  number_sections = FALSE
+)
 }
 \description{
 Run pandoc for one output format

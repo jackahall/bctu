@@ -1,3 +1,15 @@
+# bctu 0.17.1
+
+## Fixes
+
+* `render_report()` gains explicit page-layout options: `orientation`
+  (`"portrait"`/`"landscape"`, PDF geometry), `margin` (PDF, default `"1in"`),
+  `toc` and `number_sections` (all formats). The rebuilt renderer previously
+  emitted only a bare title header, so migrated PDF reports (C-SAFE weekly)
+  rendered portrait with no table of contents or section numbering; trial
+  scripts can now state the layout the old Rmd headers carried. The layout is
+  recorded in `report-manifest.yml`.
+
 # bctu 0.17.0
 
 ## Changes
