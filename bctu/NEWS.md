@@ -1,3 +1,19 @@
+# bctu 0.17.3
+
+## Changes
+
+* PDF tables now go through the same pandoc grid-table pipeline as DOCX,
+  instead of hand-rolled raw LaTeX. Pandoc typesets them as longtables with
+  computed column widths, header wrapping and clean page breaks, restoring the
+  layout the pre-rebuild (kable-based) reports had; the raw-LaTeX path
+  produced non-breaking floats that overflowed the page and collided with
+  following text. `render_table_latex()` and its escaping helper are removed
+  (capability drop: LaTeX `\multicolumn` spanning headers; grid spanning
+  header rows render equivalently in both formats).
+* Leading spaces in table cells (hierarchy indentation, e.g. classification
+  tiers) are preserved as no-break spaces in every output format; previously
+  the PDF path dropped them, flattening indented tables.
+
 # bctu 0.17.2
 
 ## Fixes

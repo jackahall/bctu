@@ -7,19 +7,20 @@
 # optional spanning group headers, optional full-width banner rows, and a
 # caption. It is NOT tied to Word, LaTeX or HTML.
 #
-# Rendering to a specific target is a separate, explicit step. Each renderer
-# (`render_table_markdown` for the DOCX path, `render_table_latex` for the PDF
-# path) consumes the SAME object, so the two outputs can never drift apart and
-# the underlying numbers are always retrievable for checking with
-# `report_table_data()`.
+# Rendering to a specific target is a separate, explicit step. One renderer,
+# `render_table_markdown`, emits a pandoc grid table that pandoc typesets for
+# every output format (DOCX styles, PDF longtable with computed column widths
+# and wrapping), so the outputs can never drift apart and the underlying
+# numbers are always retrievable for checking with `report_table_data()`.
 
 # --- constructor -----------------------------------------------------------
 #' Build a format-agnostic report table
 #'
-#' Returns a single structured object that both the Word (grid table) and PDF
-#' (LaTeX) renderers consume, so a table is described once and rendered the same
-#' way everywhere. The body data keeps its original types, so the exact numbers
-#' behind the report are always retrievable with [report_table_data()].
+#' Returns a single structured object that the grid-table renderer consumes for
+#' every output format (Word and PDF), so a table is described once and
+#' rendered the same way everywhere. The body data keeps its original types, so
+#' the exact numbers behind the report are always retrievable with
+#' [report_table_data()].
 #'
 #' @param data A data frame: the body of the table (one row per table row).
 #' @param columns Which columns to show and their headings. One of:
@@ -215,7 +216,7 @@ report_table_display_body <- function(x) {
 # headers and banners are rendered as spanning cells (pandoc treats a content
 # row that omits the internal `|` as a cell spanning those columns).
 
-#' Render a report table as a pandoc grid table (for the DOCX path)
+#' Render a report table as a pandoc grid table (every output format)
 #'
 #' @param x A `bctu_report_table`.
 #' @return A single string containing the pandoc grid table (and its caption).
@@ -338,7 +339,16 @@ grid_border_line <- function(widths, char, aligns = NULL) {
 escape_grid_text <- function(text) {
   text <- as.character(text)
   text <- gsub("\r\n|\r|\n", " ", text)
-  gsub("|", "\\|", text, fixed = TRUE)
+  text <- gsub("|", "\\|", text, fixed = TRUE)
+  # Leading spaces are hierarchy indentation (e.g. classification tiers).
+  # Pandoc strips ordinary leading whitespace when it parses the cell, so each
+  # leading space becomes a no-break space (U+00A0), which every output format
+  # renders at space width.
+  indent <- attr(regexpr("^ +", text), "match.length")
+  has <- indent > 0L
+  text[has] <- paste0(strrep("\u00a0", indent[has]),
+                      substr(text[has], indent[has] + 1L, nchar(text[has])))
+  text
 }
 
 #' A grid-table content line, supporting cells that span several columns
@@ -367,71 +377,3 @@ pad_text <- function(text, width, align = "left") {
     paste0(text, strrep(" ", gap)))
 }
 
-# ---------------------------------------------------------------------------
-# Renderer 2: LaTeX (the PDF path)
-# ---------------------------------------------------------------------------
-
-#' Render a report table as LaTeX (for the PDF path)
-#'
-#' Produces a `table` environment with a `tabular` inside, using only core LaTeX
-#' (`\\multicolumn`, `\\hline`) so no extra package is required. Group headers
-#' become spanning `\\multicolumn` cells; banner rows span the full width.
-#' @param x A `bctu_report_table`.
-#' @return A single string of LaTeX.
-#' @export
-render_table_latex <- function(x) {
-  if (!inherits(x, "bctu_report_table"))
-    cli::cli_abort("{.arg x} must be a {.cls bctu_report_table}.")
-  body   <- report_table_display_body(x)
-  labels <- x$columns$label
-  aligns <- x$columns$align
-  n_col  <- ncol(body)
-  col_code <- vapply(aligns, function(a)
-    switch(a, right = "r", center = "c", "l"), character(1))
-
-  latex_row <- function(cells) paste0(paste(cells, collapse = " & "), " \\\\")
-
-  parts <- c("\\begin{table}[htbp]", "\\centering")
-  if (!is.null(x$caption))
-    parts <- c(parts, paste0("\\caption{", latex_escape(x$caption), "}"))
-  parts <- c(parts, paste0("\\begin{tabular}{", paste(col_code, collapse = ""), "}"),
-             "\\hline")
-
-  if (!is.null(x$group_headers)) {
-    gcells <- Map(function(l, s)
-      paste0("\\multicolumn{", s, "}{c}{", latex_escape(l), "}"),
-      x$group_headers$label, x$group_headers$span)
-    parts <- c(parts, latex_row(gcells), "\\hline")
-  }
-  parts <- c(parts, latex_row(vapply(labels, latex_escape, character(1))), "\\hline")
-
-  banner_after <- if (is.null(x$banner_rows)) integer(0) else x$banner_rows$after
-  emit_banner_latex <- function(after_row) {
-    idx <- which(banner_after == after_row)
-    unlist(lapply(idx, function(k)
-      latex_row(paste0("\\multicolumn{", n_col, "}{l}{\\textbf{",
-                       latex_escape(x$banner_rows$label[k]), "}}"))))
-  }
-  parts <- c(parts, emit_banner_latex(0L))
-  for (r in seq_len(nrow(body))) {
-    parts <- c(parts, latex_row(vapply(body[r, ], latex_escape, character(1))))
-    parts <- c(parts, emit_banner_latex(r))
-  }
-  parts <- c(parts, "\\hline", "\\end{tabular}", "\\end{table}")
-  paste(parts, collapse = "\n")
-}
-
-#' Escape LaTeX special characters in a string
-#' @keywords internal
-latex_escape <- function(s) {
-  s <- as.character(s)
-  # stand a backslash in for every literal "\" first, so the brace pass below
-  # does not re-escape the "{" and "}" that \textbackslash{} would introduce
-  token <- "\x01BCTUBACKSLASHTOKEN\x01"
-  s <- gsub("\\\\", token, s)
-  s <- gsub("([&%$#_{}])", "\\\\\\1", s)
-  s <- gsub("~", "\\\\textasciitilde{}", s)
-  s <- gsub("\\^", "\\\\textasciicircum{}", s)
-  s <- gsub(token, "\\textbackslash{}", s, fixed = TRUE)
-  s
-}

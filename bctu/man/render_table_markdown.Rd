@@ -2,7 +2,7 @@
 % Please edit documentation in R/table.R
 \name{render_table_markdown}
 \alias{render_table_markdown}
-\title{Render a report table as a pandoc grid table (for the DOCX path)}
+\title{Render a report table as a pandoc grid table (every output format)}
 \usage{
 render_table_markdown(x)
 }
@@ -13,7 +13,7 @@ render_table_markdown(x)
 A single string containing the pandoc grid table (and its caption).
 }
 \description{
-Render a report table as a pandoc grid table (for the DOCX path)
+Render a report table as a pandoc grid table (every output format)
 }
 \examples{
 data <- data.frame(id = 1:3, age = c(45, 62, 38))

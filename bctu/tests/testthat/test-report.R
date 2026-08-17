@@ -34,15 +34,6 @@ test_that("render_table_markdown produces a non-empty grid table with the data",
   expect_match(md, "Continuous", fixed = TRUE)
 })
 
-test_that("render_table_latex produces non-empty LaTeX with spanning header and banner", {
-  ex  <- make_example_table()
-  tex <- render_table_latex(ex$rt)
-  expect_true(nzchar(tex))
-  expect_match(tex, "78.51", fixed = TRUE)
-  expect_match(tex, "\\multicolumn{2}{c}{Arm A}", fixed = TRUE)
-  expect_match(tex, "textbf{Continuous}", fixed = TRUE)
-})
-
 test_that("render_report writes a docx bundle with a provenance manifest", {
   skip_on_cran()
   skip_if(!nzchar(Sys.which("pandoc")), "pandoc not on PATH")
@@ -118,15 +109,14 @@ test_that("render_table_markdown escapes pipe and newline so the grid table stay
   expect_true(all(n_pipes == n_borders[1]))
 })
 
-test_that("latex_escape and render_table_latex escape a literal backslash exactly once", {
-  expect_equal(bctu:::latex_escape("a\\b"), "a\\textbackslash{}b")
-
-  df <- data.frame(path = "C:\\Users\\Data", stringsAsFactors = FALSE)
-  rt  <- report_table(df)
-  tex <- render_table_latex(rt)
-  expect_match(tex, "C:\\textbackslash{}Users\\textbackslash{}Data", fixed = TRUE)
-  # the braces textbackslash{} introduces must not be re-escaped
-  expect_false(grepl("textbackslash\\{", tex, fixed = TRUE))
+test_that("escape_grid_text preserves leading-space indentation as no-break spaces", {
+  out <- bctu:::escape_grid_text(c("  3.1(b) Indented", "Flush", "   deeper"))
+  expect_equal(substr(out[1], 1, 2), strrep("\u00a0", 2))
+  expect_match(out[1], "3.1\\(b\\) Indented")
+  expect_equal(out[2], "Flush")
+  expect_equal(substr(out[3], 1, 3), strrep("\u00a0", 3))
+  # interior spaces untouched
+  expect_false(grepl(" \u00a0| \u00a0", out[1]))
 })
 
 test_that("render_table_markdown renders a structurally valid table for zero rows", {

@@ -45,10 +45,11 @@ numeric columns are right-aligned and all others left-aligned.}
 A \code{bctu_report_table} object.
 }
 \description{
-Returns a single structured object that both the Word (grid table) and PDF
-(LaTeX) renderers consume, so a table is described once and rendered the same
-way everywhere. The body data keeps its original types, so the exact numbers
-behind the report are always retrievable with \code{\link[=report_table_data]{report_table_data()}}.
+Returns a single structured object that the grid-table renderer consumes for
+every output format (Word and PDF), so a table is described once and
+rendered the same way everywhere. The body data keeps its original types, so
+the exact numbers behind the report are always retrievable with
+\code{\link[=report_table_data]{report_table_data()}}.
 }
 \examples{
 data <- data.frame(id = 1:3, age = c(45, 62, 38), sex = c("F", "M", "F"))

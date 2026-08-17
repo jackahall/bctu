@@ -273,29 +273,21 @@ build_report_markdown <- function(report, format, assets_dir,
                          "---"),
                        collapse = "\n")
   blocks <- vapply(seq_along(report$sections), function(i)
-    render_section(report$sections[[i]], format, assets_dir, i),
+    render_section(report$sections[[i]], assets_dir, i),
     character(1))
   paste(c(yaml_header, blocks), collapse = "\n\n")
 }
 
-#' Render one section to markdown for the given format
+#' Render one section to markdown (one pipeline for every output format)
 #' @keywords internal
-render_section <- function(section, format, assets_dir, index) {
+render_section <- function(section, assets_dir, index) {
   if (inherits(section, "bctu_report_table"))
-    return(render_table_section(section, format))
+    return(render_table_markdown(section))
   switch(section$type,
     heading   = paste0(strrep("#", section$level), " ", section$text),
     paragraph = section$text,
     figure    = render_figure_section(section, assets_dir, index),
     cli::cli_abort("Unknown section type: {.val {section$type}}."))
-}
-
-#' Render a table section: grid table for DOCX, raw LaTeX for PDF
-#' @keywords internal
-render_table_section <- function(tbl, format) {
-  if (format == "pdf")
-    return(paste0("```{=latex}\n", render_table_latex(tbl), "\n```"))
-  render_table_markdown(tbl)
 }
 
 #' Render a figure section (saving a plot object to PNG if needed)

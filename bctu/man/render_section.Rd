@@ -2,11 +2,11 @@
 % Please edit documentation in R/report.R
 \name{render_section}
 \alias{render_section}
-\title{Render one section to markdown for the given format}
+\title{Render one section to markdown (one pipeline for every output format)}
 \usage{
-render_section(section, format, assets_dir, index)
+render_section(section, assets_dir, index)
 }
 \description{
-Render one section to markdown for the given format
+Render one section to markdown (one pipeline for every output format)
 }
 \keyword{internal}
