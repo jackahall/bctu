@@ -1,3 +1,12 @@
+# bctu 0.17.5
+
+## Fixes
+
+* A table cell containing only dashes ("---", the common empty-cell
+  placeholder) no longer typesets as a horizontal rule: block-level markdown
+  reads a dashes-only line as a thematic break, so it is escaped and reaches
+  the PDF as an em dash, as the old inline pipeline rendered it.
+
 # bctu 0.17.4
 
 ## Fixes

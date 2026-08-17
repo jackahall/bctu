@@ -357,6 +357,11 @@ escape_grid_text <- function(text) {
   text <- sub("^(\\([A-Za-z0-9]+)\\) ", "\\1\\\\) ", text)
   text <- sub("^([-+*>]) ", "\\\\\\1 ", text)
   text <- sub("^(#+ )", "\\\\\\1", text)
+  # A cell of only dashes/stars/underscores ("---", the common empty-cell
+  # placeholder) is a markdown thematic break at block level and would typeset
+  # as a horizontal rule; escaped, "---" reaches the PDF as an em dash, as the
+  # inline (pipe-table) pipeline always rendered it.
+  text <- sub("^([-*_])([-*_ ]*)$", "\\\\\\1\\2", text)
   text
 }
 

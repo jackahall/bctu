@@ -131,6 +131,10 @@ test_that("escape_grid_text keeps list-like and heading-like cell text literal",
   # not list markers: no space after the dot, or version-like text
   expect_equal(esc("4.1(a) Abnormal"), "4.1(a) Abnormal")
   expect_equal(esc("v1.2 release"), "v1.2 release")
+  # a dashes-only cell must not become a thematic break (horizontal rule)
+  expect_equal(esc("---"), "\\---")
+  expect_equal(esc("***"), "\\***")
+  expect_equal(esc("- -"), "\\- -")
 })
 
 test_that("render_table_markdown renders a structurally valid table for zero rows", {
