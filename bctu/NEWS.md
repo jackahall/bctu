@@ -1,3 +1,14 @@
+# bctu 0.17.2
+
+## Fixes
+
+* Report metadata reaches pandoc again: the generated markdown's YAML block
+  was joined with blank lines between its delimiters, so pandoc read it as a
+  horizontal rule and dropped the metadata. Every rebuilt-renderer output
+  (PDF and DOCX) therefore lost its title, and 0.17.1's `geometry` never
+  applied (PDFs stayed portrait). The header is now contiguous and a test
+  pins the exact block.
+
 # bctu 0.17.1
 
 ## Fixes

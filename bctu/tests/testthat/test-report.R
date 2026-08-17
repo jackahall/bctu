@@ -146,7 +146,9 @@ test_that("build_report_markdown carries geometry for PDF only, per orientation 
     sections = list(h = report_heading("Section one")))
   pdf_md <- build_report_markdown(report, "pdf", tempdir(),
                                   orientation = "landscape", margin = "1in")
-  expect_true(grepl('geometry: "landscape,margin=1in"', pdf_md, fixed = TRUE))
+  # The metadata block must be contiguous lines or pandoc drops it entirely.
+  expect_true(startsWith(pdf_md,
+    '---\ntitle: "Layout Demo"\ngeometry: "landscape,margin=1in"\n---\n'))
   docx_md <- build_report_markdown(report, "docx", tempdir(),
                                    orientation = "landscape", margin = "1in")
   expect_false(grepl("geometry", docx_md, fixed = TRUE))

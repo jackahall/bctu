@@ -263,11 +263,15 @@ run_pandoc <- function(pandoc, md_path, out_path, fmt, template,
 #' @keywords internal
 build_report_markdown <- function(report, format, assets_dir,
                                   orientation = "portrait", margin = "1in") {
-  yaml_header <- c("---",
-                   paste0("title: ", yaml_quote(report$title)),
-                   if (format == "pdf")
-                     paste0("geometry: ", yaml_quote(paste0(orientation, ",margin=", margin))),
-                   "---", "")
+  # The YAML metadata block must be contiguous lines: a blank line after the
+  # opening --- makes pandoc read it as a horizontal rule and drop the
+  # metadata (title, geometry) entirely.
+  yaml_header <- paste(c("---",
+                         paste0("title: ", yaml_quote(report$title)),
+                         if (format == "pdf")
+                           paste0("geometry: ", yaml_quote(paste0(orientation, ",margin=", margin))),
+                         "---"),
+                       collapse = "\n")
   blocks <- vapply(seq_along(report$sections), function(i)
     render_section(report$sections[[i]], format, assets_dir, i),
     character(1))
