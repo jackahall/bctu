@@ -348,6 +348,15 @@ escape_grid_text <- function(text) {
   has <- indent > 0L
   text[has] <- paste0(strrep("\u00a0", indent[has]),
                       substr(text[has], indent[has] + 1L, nchar(text[has])))
+  # A cell is data, never markup. Grid-table cells are parsed as block-level
+  # markdown, so a leading list marker ("1. ", "II. ", "a) "), bullet, heading
+  # or quote marker would typeset the cell as that construct (e.g. an
+  # enumerate environment with its own spacing and renumbering). Backslash-
+  # escape the marker punctuation so the text stays literal.
+  text <- sub("^([0-9]+|[IVXLCDMivxlcdm]+|[A-Za-z])([.)]) ", "\\1\\\\\\2 ", text)
+  text <- sub("^(\\([A-Za-z0-9]+)\\) ", "\\1\\\\) ", text)
+  text <- sub("^([-+*>]) ", "\\\\\\1 ", text)
+  text <- sub("^(#+ )", "\\\\\\1", text)
   text
 }
 

@@ -1,3 +1,13 @@
+# bctu 0.17.4
+
+## Fixes
+
+* Grid-table cells are kept literal: pandoc parses grid cells as block-level
+  markdown, so a label starting with a list marker ("1. ", "II. ", "a) "),
+  bullet, heading or quote marker was typeset as that construct (an enumerate
+  environment with its own spacing, indentation and renumbering). The marker
+  punctuation is now backslash-escaped; a cell is data, never markup.
+
 # bctu 0.17.3
 
 ## Changes

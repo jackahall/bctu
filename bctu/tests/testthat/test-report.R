@@ -119,6 +119,20 @@ test_that("escape_grid_text preserves leading-space indentation as no-break spac
   expect_false(grepl(" \u00a0| \u00a0", out[1]))
 })
 
+test_that("escape_grid_text keeps list-like and heading-like cell text literal", {
+  esc <- bctu:::escape_grid_text
+  expect_equal(esc("II. Baby"), "II\\. Baby")
+  expect_equal(esc("1. Pre-existing condition"), "1\\. Pre-existing condition")
+  expect_equal(esc("a) option"), "a\\) option")
+  expect_equal(esc("(a) option"), "(a\\) option")
+  expect_equal(esc("- item"), "\\- item")
+  expect_equal(esc("# note"), "\\# note")
+  expect_equal(esc("> quote"), "\\> quote")
+  # not list markers: no space after the dot, or version-like text
+  expect_equal(esc("4.1(a) Abnormal"), "4.1(a) Abnormal")
+  expect_equal(esc("v1.2 release"), "v1.2 release")
+})
+
 test_that("render_table_markdown renders a structurally valid table for zero rows", {
   df <- data.frame(id = integer(0), note = character(0), stringsAsFactors = FALSE)
   rt <- report_table(df)
