@@ -235,3 +235,18 @@ test_that("render_report with meta wires the lua filter and bundled template int
   man <- yaml::read_yaml(res$manifest)
   expect_equal(man$template$identity, "reference.docx")
 })
+
+test_that("right-aligned cells never carry leading spaces (in-cell code-block guard)", {
+  df <- data.frame(visit = c("Trial entry", "52 weeks"),
+                   expected = c(186L, 5L),
+                   stringsAsFactors = FALSE)
+  rt <- report_table(df, columns = c(visit = "Visit", expected = "A wide expected heading"))
+  md <- render_table_markdown(rt)
+  lines <- strsplit(md, "\n")[[1]]
+  cells <- unlist(lapply(lines[startsWith(lines, "|")], function(l)
+    strsplit(l, "|", fixed = TRUE)[[1]]))
+  # no cell content starts with 2+ spaces after the single separator space
+  expect_false(any(grepl("^  ", sub("^ ", "", cells[nzchar(cells)]))))
+  # right alignment is still declared on the header border line
+  expect_true(any(grepl("=+:", lines)))
+})

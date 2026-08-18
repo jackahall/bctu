@@ -2,11 +2,15 @@
 % Please edit documentation in R/table.R
 \name{pad_text}
 \alias{pad_text}
-\title{Pad text to a fixed width with a given alignment}
+\title{Pad text on the right to a fixed width}
 \usage{
-pad_text(text, width, align = "left")
+pad_text(text, width)
 }
 \description{
-Pad text to a fixed width with a given alignment
+Cell content is always placed at the left of its cell: grid-table cells are
+parsed as block-level markdown, so left-padding a cell (to visually right-
+align or centre it in the source) puts leading spaces in the cell, and four
+or more turn the cell into an indented code block. Column alignment is
+carried by the colon markers on the header border line, not by padding.
 }
 \keyword{internal}

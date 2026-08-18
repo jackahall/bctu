@@ -1,3 +1,16 @@
+# bctu 0.18.3
+
+## Fixes
+
+* Right-aligned and centred table cells no longer render as in-cell code
+  blocks. The grid writer visually aligned cells by left-padding them with
+  spaces; grid cells are block-level markdown, so four or more leading spaces
+  (any wide right-aligned column, e.g. an Expected count under a long
+  heading) turned the cell into indented code. Content is now always placed
+  left in the source cell and padded on the right; column alignment is
+  carried, as it always was for the rendered output, by the colon markers on
+  the header border line.
+
 # bctu 0.18.2
 
 ## Fixes

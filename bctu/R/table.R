@@ -374,20 +374,22 @@ grid_content_line <- function(segments, widths) {
     span <- seg$span
     cols <- col:(col + span - 1L)
     inner <- sum(widths[cols]) + 3L * span - 3L
-    out <- paste0(out, " ", pad_text(seg$text, inner, seg$align), " |")
+    out <- paste0(out, " ", pad_text(seg$text, inner), " |")
     col <- col + span
   }
   out
 }
 
-#' Pad text to a fixed width with a given alignment
+#' Pad text on the right to a fixed width
+#'
+#' Cell content is always placed at the left of its cell: grid-table cells are
+#' parsed as block-level markdown, so left-padding a cell (to visually right-
+#' align or centre it in the source) puts leading spaces in the cell, and four
+#' or more turn the cell into an indented code block. Column alignment is
+#' carried by the colon markers on the header border line, not by padding.
 #' @keywords internal
-pad_text <- function(text, width, align = "left") {
+pad_text <- function(text, width) {
   text <- as.character(text)
-  gap <- max(0L, width - nchar(text))
-  switch(align,
-    right  = paste0(strrep(" ", gap), text),
-    center = paste0(strrep(" ", gap %/% 2L), text, strrep(" ", gap - gap %/% 2L)),
-    paste0(text, strrep(" ", gap)))
+  paste0(text, strrep(" ", max(0L, width - nchar(text))))
 }
 
