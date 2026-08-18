@@ -1,3 +1,20 @@
+# bctu 0.18.2
+
+## Fixes
+
+* The styled BCTU Word title page is back: the rebuild had dropped the
+  original package's `reference.docx` and `title_page.lua` (rmarkdown
+  template resources), so migrated DOCX reports rendered with no title page
+  and bare styles. Both are now bundled in `inst/report/` byte-identical to
+  the originals, and `render_report()` gains `title_page` (default: on when
+  the report has `meta`): the DOCX pass applies the Lua filter, maps `meta`
+  onto the original template's YAML contract (`trial` to `trial-short-name`,
+  `registration`, `report_type`, `subtype`, `trial_long_name`; other entries
+  become metadata-table rows after an automatic render-date row), requests
+  the Word TOC via the filter when `toc = TRUE`, and defaults the reference
+  document to the bundled one when no `template` is given. PDF output is
+  unchanged.
+
 # bctu 0.18.1
 
 ## Improvements

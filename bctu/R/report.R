@@ -139,6 +139,13 @@ print.bctu_report <- function(x, ...) {
 #' @param toc Include a table of contents (all formats)? Default `FALSE`.
 #' @param number_sections Number the section headings (all formats)? Default
 #'   `FALSE`.
+#' @param title_page Build the styled BCTU title page in the DOCX output (the
+#'   bundled `title_page.lua` filter: trial name, registration, report type,
+#'   a metadata table, and a Word TOC when `toc = TRUE`), from the report's
+#'   `meta` (see [title_page_metadata_yaml()] for the mapping)? Default
+#'   `NULL`: on when `meta` is non-empty. With no explicit `template`, the
+#'   bundled BCTU reference document supplies the styles the title page
+#'   targets. PDF output is unaffected.
 #' @param extra_destinations Optional character vector of directories to also
 #'   copy the whole rendered bundle into.
 #' @param verbose Verbosity.
@@ -163,12 +170,23 @@ render_report <- function(report, output_dir,
                           margin = "1in",
                           toc = FALSE,
                           number_sections = FALSE,
+                          title_page = NULL,
                           extra_destinations = NULL,
                           verbose = 2L) {
   if (!inherits(report, "bctu_report"))
     cli::cli_abort("{.arg report} must be a {.cls bctu_report}.")
   formats <- unique(match.arg(formats, c("docx", "pdf"), several.ok = TRUE))
   orientation <- match.arg(orientation)
+  title_page <- title_page %||% (length(report$meta) > 0L)
+  if (!is.logical(title_page) || length(title_page) != 1L || is.na(title_page))
+    cli::cli_abort("{.arg title_page} must be TRUE, FALSE, or NULL (auto).")
+  # The styled DOCX title page needs the reference styles it targets, so with
+  # no explicit template the bundled BCTU reference document is used.
+  if (isTRUE(title_page) && "docx" %in% formats && is.null(template)) {
+    template <- system.file("report", "reference.docx", package = "bctu")
+    if (verbose >= 1L)
+      cli::cli_alert_info("using the bundled BCTU reference document for DOCX styles")
+  }
   if (!is_string(margin) || !nzchar(margin))
     cli::cli_abort("{.arg margin} must be a single LaTeX length string, for example {.val 1in}.")
   pandoc <- Sys.which("pandoc")
@@ -198,14 +216,22 @@ render_report <- function(report, output_dir,
   outputs <- list()
   start <- Sys.time()
   for (fmt in formats) {
+    # DOCX with a title page: the bundled Lua filter builds the styled title
+    # page and (when toc) a Word TOC field from the bctu metadata keys, so
+    # pandoc's own --toc is not passed for that format.
+    styled <- isTRUE(title_page) && fmt == "docx"
     md_path <- file.path(work, paste0(base_name, "-", fmt, ".md"))
     writeLines(enc2utf8(build_report_markdown(report, fmt, work,
                                               orientation = orientation,
-                                              margin = margin)),
+                                              margin = margin,
+                                              title_page_yaml = if (styled)
+                                                title_page_metadata_yaml(report, toc))),
                md_path, useBytes = TRUE)
     out_path <- file.path(output_dir, paste0(base_name, ".", fmt))
     run_pandoc(pandoc, md_path, out_path, fmt, template,
-               toc = toc, number_sections = number_sections)
+               toc = toc && !styled, number_sections = number_sections,
+               lua_filter = if (styled)
+                 system.file("report", "title_page.lua", package = "bctu"))
     if (!file.exists(out_path) || file.info(out_path)$size == 0)
       cli::cli_abort("pandoc produced no {fmt} output at {.file {out_path}}.")
     outputs[[fmt]] <- out_path
@@ -237,10 +263,13 @@ render_report <- function(report, output_dir,
 #' Run pandoc for one output format
 #' @keywords internal
 run_pandoc <- function(pandoc, md_path, out_path, fmt, template,
-                       toc = FALSE, number_sections = FALSE) {
+                       toc = FALSE, number_sections = FALSE,
+                       lua_filter = NULL) {
   args <- c(shQuote(md_path), "--from", "markdown",
             "-o", shQuote(out_path), "--standalone",
             paste0("--resource-path=", shQuote(dirname(md_path))))
+  if (!is.null(lua_filter))
+    args <- c(args, "--lua-filter", shQuote(lua_filter))
   if (isTRUE(toc)) args <- c(args, "--toc")
   if (isTRUE(number_sections)) args <- c(args, "--number-sections")
   if (fmt == "pdf")
@@ -259,15 +288,52 @@ run_pandoc <- function(pandoc, md_path, out_path, fmt, template,
 }
 
 # --- document assembly (explicit sections -> pandoc markdown) --------------
+#' The bctu title-page YAML lines for a report's metadata
+#'
+#' Maps a `bctu_report`'s `meta` list onto the metadata keys the bundled
+#' `title_page.lua` filter reads (the contract the original package's Rmd
+#' template used): `trial` to `trial-short-name`, `trial_long_name` to
+#' `trial-long-name`, `registration` to `trial-registration`, `report_type`
+#' to `report-type`, `subtype` to `report-subtype`. Every other meta entry
+#' becomes a row of the title page's metadata table, labelled from its name
+#' (`prepared_by` becomes "Prepared by"), after an automatic first row `Date`
+#' holding the render date, as the original template's skeleton did. When
+#' `toc` is `TRUE`, `include-toc`/`toc-depth` ask the filter for a Word TOC.
+#' @param report A `bctu_report`.
+#' @param toc Request the Word table of contents?
+#' @param toc_depth TOC depth (default 3, the original template's default).
+#' @return A character vector of YAML lines.
+#' @keywords internal
+title_page_metadata_yaml <- function(report, toc = FALSE, toc_depth = 3L) {
+  meta <- report$meta
+  named <- c(trial = "trial-short-name", trial_long_name = "trial-long-name",
+             registration = "trial-registration", report_type = "report-type",
+             subtype = "report-subtype")
+  lines <- character(0)
+  for (nm in names(named))
+    if (!is.null(meta[[nm]]))
+      lines <- c(lines, paste0(named[[nm]], ": ", yaml_quote(as.character(meta[[nm]]))))
+  rows <- paste0("- Date: ", yaml_quote(format(utc_now(), "%d %B %Y")))
+  for (nm in setdiff(names(meta), names(named))) {
+    label <- gsub("_", " ", nm)
+    label <- paste0(toupper(substr(label, 1L, 1L)), substr(label, 2L, nchar(label)))
+    rows <- c(rows, paste0("- ", label, ": ", yaml_quote(as.character(meta[[nm]]))))
+  }
+  c(lines, "metadata:", rows,
+    if (isTRUE(toc)) c("include-toc: true", paste0("toc-depth: ", toc_depth)))
+}
+
 #' Assemble the full pandoc-markdown document for one format
 #' @keywords internal
 build_report_markdown <- function(report, format, assets_dir,
-                                  orientation = "portrait", margin = "1in") {
+                                  orientation = "portrait", margin = "1in",
+                                  title_page_yaml = NULL) {
   # The YAML metadata block must be contiguous lines: a blank line after the
   # opening --- makes pandoc read it as a horizontal rule and drop the
   # metadata (title, geometry) entirely.
   yaml_header <- paste(c("---",
                          paste0("title: ", yaml_quote(report$title)),
+                         title_page_yaml,
                          if (format == "pdf")
                            paste0("geometry: ", yaml_quote(paste0(orientation, ",margin=", margin))),
                          "---"),

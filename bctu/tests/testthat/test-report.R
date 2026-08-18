@@ -181,3 +181,57 @@ test_that("render_report records the layout in the manifest and passes toc flags
   expect_true(man$layout$toc)
   expect_true(man$layout$number_sections)
 })
+
+test_that("title_page_metadata_yaml maps report meta onto the lua filter's contract", {
+  report <- bctu_report(
+    title = "OCEaN TMG Report",
+    sections = list(h = report_heading("One")),
+    meta = list(trial = "OCEaN",
+                trial_long_name = "Optimisation before surgery",
+                registration = "ISRCTN73953171",
+                report_type = "Trial Management Group Report",
+                subtype = "Form Return",
+                version = "v0.2",
+                prepared_by = "Jack Hall (Trial Statistician)",
+                sponsor = "University of Birmingham"))
+  y <- title_page_metadata_yaml(report, toc = TRUE)
+  expect_true('trial-short-name: "OCEaN"' %in% y)
+  expect_true('trial-long-name: "Optimisation before surgery"' %in% y)
+  expect_true('trial-registration: "ISRCTN73953171"' %in% y)
+  expect_true('report-type: "Trial Management Group Report"' %in% y)
+  expect_true('report-subtype: "Form Return"' %in% y)
+  expect_true("metadata:" %in% y)
+  expect_true(any(grepl("^- Date: ", y)))
+  expect_true('- Version: "v0.2"' %in% y)
+  expect_true('- Prepared by: "Jack Hall (Trial Statistician)"' %in% y)
+  expect_true('- Sponsor: "University of Birmingham"' %in% y)
+  expect_true("include-toc: true" %in% y)
+  expect_true("toc-depth: 3" %in% y)
+  # metadata rows follow the mapped title keys and stay inside the YAML block
+  md <- build_report_markdown(report, "docx", tempdir(),
+                              title_page_yaml = y)
+  header <- strsplit(md, "\n\n")[[1]][1]
+  expect_true(grepl('trial-short-name: "OCEaN"', header, fixed = TRUE))
+  expect_true(grepl("include-toc: true", header, fixed = TRUE))
+  expect_false(grepl("\n\n", header, fixed = TRUE))
+})
+
+test_that("render_report with meta wires the lua filter and bundled template into docx", {
+  skip_on_cran()
+  skip_if(!nzchar(Sys.which("pandoc")), "pandoc not on PATH")
+  out <- withr::local_tempdir()
+  report <- bctu_report(
+    title = "Styled Demo",
+    sections = list(h = report_heading("Section one"),
+                    p = report_paragraph("Body.")),
+    meta = list(trial = "DEMO", report_type = "Monitoring Report"))
+  res <- render_report(report, output_dir = out, formats = "docx",
+                       toc = TRUE, verbose = 0L)
+  xml <- paste(readLines(unz(res$outputs$docx, "word/document.xml"), warn = FALSE),
+               collapse = "")
+  expect_true(grepl('w:val="TitleAcronym"', xml, fixed = TRUE))
+  expect_true(grepl("DEMO", xml, fixed = TRUE))
+  expect_true(grepl("TOC", xml, fixed = TRUE))
+  man <- yaml::read_yaml(res$manifest)
+  expect_equal(man$template$identity, "reference.docx")
+})

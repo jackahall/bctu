@@ -11,7 +11,8 @@ run_pandoc(
   fmt,
   template,
   toc = FALSE,
-  number_sections = FALSE
+  number_sections = FALSE,
+  lua_filter = NULL
 )
 }
 \description{

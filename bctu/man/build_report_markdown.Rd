@@ -9,7 +9,8 @@ build_report_markdown(
   format,
   assets_dir,
   orientation = "portrait",
-  margin = "1in"
+  margin = "1in",
+  title_page_yaml = NULL
 )
 }
 \description{

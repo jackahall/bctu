@@ -14,6 +14,7 @@ render_report(
   margin = "1in",
   toc = FALSE,
   number_sections = FALSE,
+  title_page = NULL,
   extra_destinations = NULL,
   verbose = 2L
 )
@@ -47,6 +48,14 @@ default) or \code{"landscape"}. The DOCX orientation comes from the reference
 
 \item{number_sections}{Number the section headings (all formats)? Default
 \code{FALSE}.}
+
+\item{title_page}{Build the styled BCTU title page in the DOCX output (the
+bundled \code{title_page.lua} filter: trial name, registration, report type,
+a metadata table, and a Word TOC when \code{toc = TRUE}), from the report's
+\code{meta} (see \code{\link[=title_page_metadata_yaml]{title_page_metadata_yaml()}} for the mapping)? Default
+\code{NULL}: on when \code{meta} is non-empty. With no explicit \code{template}, the
+bundled BCTU reference document supplies the styles the title page
+targets. PDF output is unaffected.}
 
 \item{extra_destinations}{Optional character vector of directories to also
 copy the whole rendered bundle into.}
