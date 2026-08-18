@@ -1,3 +1,28 @@
+# bctu 0.18.0
+
+## New features
+
+* Run logs: `start_log()` opens a recorded session (SAS `proc printto` /
+  Stata `log using` style) and `stop_log()` closes it. Each run gets one
+  directory under `<project dir>/log-output` (or an explicit `location`)
+  holding a plain-text transcript (`run.log`: printed output, warnings,
+  errors, messages, and the command echo), a structured YAML record
+  (`run.yml`, schema `bctu-runlog/1`: who/when/where, R and package versions,
+  snapshot identity and fingerprint, parameters, input and output file
+  SHA-256s, status and tallies, and the transcript's own SHA-256), and a
+  `run.msg` sidecar only when the run was not clean. An append-only
+  `index.csv` lists every run; same-second collisions get a suffix, nothing
+  is ever overwritten. The header is written to disc before any work runs,
+  so even a killed session leaves the header and partial transcript; a
+  `quit()` or session end without `stop_log()` records `interrupted`.
+  Nothing about the console experience changes (split sink; conditions
+  observed without muffling).
+* `checkpoint()` now also writes its stamp into the open run log (transcript
+  block plus a `checkpoints:` entry in the record) and, interactively with no
+  log open, starts one with the defaults; the run's timestamp is that
+  stamp. In non-interactive use with no log open it remains a pure stamp.
+  `list_logs()` and `read_log()` read the run history back.
+
 # bctu 0.17.5
 
 ## Fixes

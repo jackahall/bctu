@@ -26,7 +26,7 @@ as_snapshot <- function(tables, source, name) {
             class = c("bctu_snapshot", "list"),
             bctu_meta = list(name = name, source = source,
                              fetched_utc = iso8601(),
-                             checkpoint = checkpoint()))
+                             checkpoint = checkpoint_stamp()))
 }
 
 # --- git provenance: the audit trail (metadata only; never fails a snapshot) ---
@@ -136,13 +136,26 @@ print.bctu_snapshot <- function(x, ...) {
 }
 
 #' A lightweight provenance checkpoint
+#'
+#' Returns the stamp (UTC time, R and bctu versions, user, host) and, when a
+#' run log is open, also writes it into the log's transcript and record. In an
+#' interactive session with no run log open, calling `checkpoint()` starts one
+#' with the [start_log()] defaults (the run's timestamp is this stamp), so the
+#' laziest route into a recorded session is a single `checkpoint()`. In
+#' non-interactive use with no log open it is a pure stamp with no side
+#' effects, as always.
+#' @return The stamp, a list: `created_utc`, `r_version`, `bctu_version`,
+#'   `user`, `host`.
 #' @export
 checkpoint <- function() {
-  ver <- tryCatch(as.character(utils::packageVersion("bctu")), error = function(e) NA_character_)
-  list(created_utc = iso8601(), r_version = R.version.string,
-       bctu_version = ver,
-       user = unname(Sys.info()[["user"]]) %||% "unknown",
-       host = unname(Sys.info()[["nodename"]]) %||% "unknown")
+  log <- run_log_state$log
+  if (is.null(log) && interactive()) {
+    start_log()
+    return(run_log_state$log$record$checkpoint)
+  }
+  stamp <- checkpoint_stamp()
+  if (!is.null(log)) record_checkpoint(log, stamp)
+  stamp
 }
 
 # --- take + save ------------------------------------------------------------

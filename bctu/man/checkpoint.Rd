@@ -6,6 +6,16 @@
 \usage{
 checkpoint()
 }
+\value{
+The stamp, a list: \code{created_utc}, \code{r_version}, \code{bctu_version},
+\code{user}, \code{host}.
+}
 \description{
-A lightweight provenance checkpoint
+Returns the stamp (UTC time, R and bctu versions, user, host) and, when a
+run log is open, also writes it into the log's transcript and record. In an
+interactive session with no run log open, calling \code{checkpoint()} starts one
+with the \code{\link[=start_log]{start_log()}} defaults (the run's timestamp is this stamp), so the
+laziest route into a recorded session is a single \code{checkpoint()}. In
+non-interactive use with no log open it is a pure stamp with no side
+effects, as always.
 }
