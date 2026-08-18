@@ -189,3 +189,40 @@ test_that("quit() without stop_log leaves an interrupted record; a hard kill lea
   expect_equal(rec$status, "started")
   expect_false(sleeper_dirs[[1]] %in% list_logs(loc)$id)
 })
+
+test_that("inside a knitr render, conditions are captured via knitr's calling.handlers", {
+  skip_on_cran()
+  skip_if_not_installed("knitr")
+  skip_if_not(child_bctu_has_run_logs(), "installed bctu lacks run logs")
+  loc <- withr::local_tempdir()
+  rmd <- file.path(withr::local_tempdir(), "doc.Rmd")
+  md  <- sub("Rmd$", "md", rmd)
+  writeLines(c(
+    "```{r}",
+    sprintf("bctu::start_log(location = '%s', name = 'knit', verbose = 0L)", loc),
+    "```", "",
+    "```{r}",
+    "print('knit-output')",
+    "warning('knit-warning')",
+    "```", "",
+    "```{r}",
+    "bctu::stop_log(verbose = 0L)",
+    "```"), rmd)
+  # knit in a child process so the installed package and a clean session are used
+  res <- system2(file.path(R.home("bin"), "Rscript"),
+                 c("-e", shQuote(sprintf("knitr::knit('%s', output = '%s', quiet = TRUE)", rmd, md))),
+                 stdout = TRUE, stderr = TRUE)
+
+  idx <- list_logs(loc)
+  expect_equal(nrow(idx), 1L)
+  expect_equal(idx$status, "warnings")
+  expect_equal(idx$warnings, 1L)
+  rec <- read_log(idx$id, location = loc)
+  expect_equal(rec$condition_capture, "knitr")
+  transcript <- readLines(file.path(loc, idx$id, "run.log"))
+  expect_true(any(grepl("## [warning", transcript, fixed = TRUE)))
+  # the knitted document still shows the chunk output and the warning
+  knitted <- readLines(md)
+  expect_true(any(grepl("knit-output", knitted, fixed = TRUE)))
+  expect_true(any(grepl("Warning", knitted, fixed = TRUE)))
+})

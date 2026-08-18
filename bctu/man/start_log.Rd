@@ -52,12 +52,16 @@ the transcript up to the point of death; a record that never reached
 
 Command echo is appended after each top-level expression completes, so a
 command appears in the transcript after its own output (an R limitation:
-there is no pre-execution hook). Warning/error/message capture uses R's
-global condition handlers, which cannot be installed while the call is
-wrapped in \code{tryCatch()} or similar; called that way, \code{start_log()} says so
-and records the transcript without condition tallies
-(\code{condition_capture: false} in the record). Input that is not a top-level
-expression (e.g. \code{readline()} answers) and graphics are not captured.
+there is no pre-execution hook). Warning/error/message capture depends on
+the context, recorded as \code{condition_capture} in the record: at top level
+(console, \code{Rscript}) R's global condition handlers are used (\code{"global"});
+inside a knitr/R Markdown render the handlers are installed through
+knitr's own \code{calling.handlers} chunk option (\code{"knitr"}; effective from the
+chunk after the one calling \code{start_log()}); and when the call is wrapped
+in \code{tryCatch()} or similar, where R refuses global handlers, \code{start_log()}
+says so and records the transcript without condition tallies (\code{"none"}).
+Input that is not a top-level expression (e.g. \code{readline()} answers) and
+graphics are not captured.
 }
 \examples{
 \dontrun{

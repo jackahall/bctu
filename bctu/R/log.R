@@ -128,12 +128,16 @@ write_run_record <- function(record, dir) {
 #'
 #' Command echo is appended after each top-level expression completes, so a
 #' command appears in the transcript after its own output (an R limitation:
-#' there is no pre-execution hook). Warning/error/message capture uses R's
-#' global condition handlers, which cannot be installed while the call is
-#' wrapped in `tryCatch()` or similar; called that way, `start_log()` says so
-#' and records the transcript without condition tallies
-#' (`condition_capture: false` in the record). Input that is not a top-level
-#' expression (e.g. `readline()` answers) and graphics are not captured.
+#' there is no pre-execution hook). Warning/error/message capture depends on
+#' the context, recorded as `condition_capture` in the record: at top level
+#' (console, `Rscript`) R's global condition handlers are used (`"global"`);
+#' inside a knitr/R Markdown render the handlers are installed through
+#' knitr's own `calling.handlers` chunk option (`"knitr"`; effective from the
+#' chunk after the one calling `start_log()`); and when the call is wrapped
+#' in `tryCatch()` or similar, where R refuses global handlers, `start_log()`
+#' says so and records the transcript without condition tallies (`"none"`).
+#' Input that is not a top-level expression (e.g. `readline()` answers) and
+#' graphics are not captured.
 #'
 #' @param location Directory to hold run logs. Default: `log-output/` under
 #'   the bctu project root when a project marker is found; outside a project
@@ -243,15 +247,23 @@ start_log <- function(location = NULL, name = NULL, snapshot = NULL,
   handlers <- list(message = condition_line("message"),
                    warning = condition_line("warning"),
                    error   = condition_line("error"))
-  # Registered bare: globalCallingHandlers() cannot be guarded by any catching
-  # wrapper (the wrapper is exactly what it refuses to run under), so the
-  # stack is inspected first and registration is skipped, announced, in
-  # contexts where it would be refused (then the transcript records output and
-  # commands only, and condition_capture is recorded false).
-  handlers_on <- FALSE
-  if (!handler_frames_on_stack()) {
+  # Three condition-capture routes, recorded as `condition_capture` in the
+  # record. Inside knitr the handlers are installed through knitr's own
+  # calling.handlers chunk option (knitr owns its evaluation loop; effective
+  # from the next chunk). Otherwise globalCallingHandlers() is called bare: it
+  # cannot be guarded by any catching wrapper (the wrapper is exactly what it
+  # refuses to run under), so the stack is inspected first and capture is
+  # skipped, announced, where registration would be refused (the transcript
+  # then records output and commands only).
+  capture <- "none"
+  if (isTRUE(getOption("knitr.in.progress")) &&
+      requireNamespace("knitr", quietly = TRUE)) {
+    log$prior_chunk_handlers <- knitr::opts_chunk$get("calling.handlers")
+    knitr::opts_chunk$set(calling.handlers = c(handlers, log$prior_chunk_handlers))
+    capture <- "knitr"
+  } else if (!handler_frames_on_stack()) {
     do.call(globalCallingHandlers, handlers)
-    handlers_on <- TRUE
+    capture <- "global"
   } else if (verbose >= 1L) {
     cli::cli_alert_warning("Warnings/errors cannot be tallied here (called under tryCatch or similar); the transcript still records output and commands.")
   }
@@ -266,7 +278,7 @@ start_log <- function(location = NULL, name = NULL, snapshot = NULL,
 
   log$id <- id; log$dir <- dir; log$con <- con
   log$record <- record; log$counts <- counts
-  log$handlers <- handlers; log$handlers_on <- handlers_on
+  log$handlers <- handlers; log$capture <- capture
   log$callback_name <- names(callback_name) %||% paste0("bctu-run-log-", id)
   log$sink_depth_before <- sink_depth_before
   log$location <- location
@@ -307,7 +319,9 @@ stop_log <- function(outputs = NULL, verbose = 1L) {
                      "i" = "Start one with {.fn start_log}."))
 
   removeTaskCallback(log$callback_name)
-  if (isTRUE(log$handlers_on) && !handler_frames_on_stack()) {
+  if (identical(log$capture, "knitr")) {
+    knitr::opts_chunk$set(calling.handlers = log$prior_chunk_handlers)
+  } else if (identical(log$capture, "global") && !handler_frames_on_stack()) {
     # deregister exactly the handlers this log added, leaving any others; when
     # the stack blocks deregistration the handlers stay registered but inert
     # (closed flag), which is harmless
@@ -335,7 +349,7 @@ stop_log <- function(outputs = NULL, verbose = 1L) {
   log$record$ended_utc <- iso8601()
   log$record$warnings <- log$counts$warnings
   log$record$errors <- log$counts$errors
-  log$record$condition_capture <- isTRUE(log$handlers_on)
+  log$record$condition_capture <- log$capture
   out_inv <- run_log_file_inventory(outputs)
   if (!is.null(out_inv)) log$record$outputs <- out_inv
   log$record$transcript_sha256 <- sha256_file(file.path(log$dir, "run.log"))

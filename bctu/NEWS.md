@@ -1,3 +1,17 @@
+# bctu 0.18.1
+
+## Improvements
+
+* Run-log condition capture now works inside knitr / R Markdown renders: the
+  handlers are installed through knitr's own `calling.handlers` chunk option
+  (the route rlang uses), effective from the chunk after `start_log()`, and
+  restored on `stop_log()`. The record's `condition_capture` field now names
+  the route: `global` (top level), `knitr`, or `none` (called under
+  `tryCatch()` or similar, where R refuses global handlers; investigated and
+  confirmed unmanageable in general: every catching guard is itself the thing
+  R refuses to run under, and registering from a task callback desyncs R's
+  handler registry without ever taking effect).
+
 # bctu 0.18.0
 
 ## New features
