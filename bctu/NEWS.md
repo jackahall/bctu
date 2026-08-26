@@ -1,3 +1,20 @@
+# bctu 0.19.0
+
+## Changes
+
+* `save_dvr()` and `save_cdi()` now compare by default: `before` defaults to
+  `"penultimate"`, resolved to the snapshot immediately BEFORE `after` in its
+  own store (so a rerun on an older snapshot compares against its
+  predecessor, never against newer data), restoring the original package's
+  `since = "penultimate"` behaviour lost in the rebuild. Resolution failures
+  (a store with one snapshot, no resolvable store, or an earlier directory
+  the package cannot read, e.g. a pre-rebuild snapshot without a manifest)
+  fall back to an uncompared report with a message, never an error. An
+  explicit `before = NULL` still means no comparison; an explicit snapshot
+  or selector string is honoured. `save_cdi()` gains the full comparison
+  interface (`before`, `status_output`, `include_resolved`) with the same
+  defaults.
+
 # bctu 0.18.3
 
 ## Fixes

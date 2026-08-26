@@ -238,6 +238,62 @@ add_query_column <- function(sheets, info) {
   sheets
 }
 
+# --- default before-snapshot resolution -------------------------------------
+#' Resolve the `before` argument of a report into a snapshot, or NULL
+#'
+#' A `bctu_snapshot` passes through; `NULL` means no comparison. A character
+#' selector is resolved from the store the `after` snapshot lives in (falling
+#' back to the project store). The default selector `"penultimate"` resolves
+#' to the snapshot immediately BEFORE `after` in that store, so a rerun on an
+#' older snapshot compares against its own predecessor, never against newer
+#' data. Every resolution failure (no store, no earlier snapshot, or an
+#' earlier directory that cannot be loaded, e.g. a pre-rebuild snapshot with
+#' no manifest) falls back to `NULL` with a message, never an error: an
+#' uncompared report is always preferable to no report.
+#' @param before A `bctu_snapshot`, a character selector, or `NULL`.
+#' @param after The current snapshot the report is about.
+#' @param verbose Verbosity.
+#' @return A `bctu_snapshot`, or `NULL` for no comparison.
+#' @keywords internal
+resolve_before_snapshot <- function(before, after, verbose = 1L) {
+  # anything that is not a selector string (a snapshot, or any dataset the
+  # DVP accepts) passes through untouched; NULL stays "no comparison"
+  if (!is.character(before)) return(before)
+  if (!is_string(before))
+    cli::cli_abort("{.arg before} must be a snapshot, a selector string, or NULL.")
+
+  fall_back <- function(reason) {
+    if (verbose >= 1L)
+      cli::cli_alert_info("No comparison: {reason}. Issuing the report uncompared.")
+    NULL
+  }
+
+  after_dir <- attr(after, "dir")
+  store <- if (!is.null(after_dir)) dirname(after_dir)
+           else tryCatch(snapshot_store(verbose = 0L), error = function(e) NULL)
+  if (is.null(store) || !dir.exists(store))
+    return(fall_back("no snapshot store could be resolved"))
+
+  which <- before
+  if (identical(before, "penultimate")) {
+    after_id <- attr(after, "id")
+    ids <- tryCatch(list_snapshots(store), error = function(e) character(0))
+    earlier <- if (!is.null(after_id)) ids[ids < after_id] else ids[-length(ids)]
+    if (!length(earlier))
+      return(fall_back(paste0("no earlier snapshot in ", store)))
+    which <- max(earlier)
+  }
+
+  snap <- tryCatch(suppressWarnings(load_snapshot(which = which, store = store, verbose = 0L)),
+                   error = function(e) NULL)
+  if (is.null(snap))
+    return(fall_back(paste0("the earlier snapshot ", which,
+                            " could not be loaded (it may predate the rebuilt package)")))
+  if (verbose >= 1L)
+    cli::cli_alert_info("comparing against snapshot {.val {attr(snap, 'id')}}")
+  snap
+}
+
 # --- snapshot fingerprint ---------------------------------------------------
 #' A single integrity fingerprint for a saved snapshot
 #'
@@ -519,8 +575,14 @@ write_report_set <- function(sheets, snapshot, dir, base_name,
 #' @param dvp A DVP function: `function(data)` returning a named list of
 #'   findings (see [run_dvp()]).
 #' @param after The current snapshot the report is about.
-#' @param before Optional earlier snapshot to compare against; when `NULL` the
-#'   report lists the current findings with no change labelling and no `update/`.
+#' @param before The earlier snapshot to compare against. Default
+#'   `"penultimate"`: the snapshot immediately before `after` in its store is
+#'   loaded automatically, so findings carry the change labelling on every
+#'   routine run; when that resolution fails (a store with one snapshot, or an
+#'   earlier directory the package cannot read, e.g. pre-rebuild snapshots),
+#'   the report is issued uncompared with a message, never an error. Pass a
+#'   `bctu_snapshot` to compare against explicitly, another selector string to
+#'   resolve it from the store, or `NULL` for no comparison.
 #' @param paths One or more directories to receive the report (the report is
 #'   written to each). Defaults to the working directory.
 #' @param id_col Record-id column used to map findings to sites. Default
@@ -575,7 +637,7 @@ write_report_set <- function(sheets, snapshot, dir, base_name,
 #' save_dvr(dvp, after = load_snapshot("latest"))
 #' }
 #' @export
-save_dvr <- function(dvp, after, before = NULL, paths = getwd(),
+save_dvr <- function(dvp, after, before = "penultimate", paths = getwd(),
                      id_col = "record_id", site_col = NULL, version = NULL,
                      operator = NULL, check_info = NULL, query_column = TRUE,
                      status_output = c("folders", "column"),
@@ -591,8 +653,8 @@ save_dvr <- function(dvp, after, before = NULL, paths = getwd(),
 
 #' Build a Critical Data Items (CDI) report from a DVP function and a snapshot
 #'
-#' Identical machinery to [save_dvr()] with its own label. A CDI has no update
-#' comparison, so `before` is not accepted.
+#' Identical machinery to [save_dvr()] with its own label, including the
+#' default comparison against the previous snapshot.
 #' @inheritParams save_dvr
 #' @return Invisibly, a list with the report id, directories written, sheets,
 #'   and per-check counts.
@@ -602,25 +664,30 @@ save_dvr <- function(dvp, after, before = NULL, paths = getwd(),
 #' save_cdi(dvp, after = load_snapshot("latest"))
 #' }
 #' @export
-save_cdi <- function(dvp, after, paths = getwd(), id_col = "record_id",
+save_cdi <- function(dvp, after, before = "penultimate", paths = getwd(),
+                     id_col = "record_id",
                      site_col = NULL, version = NULL, operator = NULL,
                      check_info = NULL, query_column = TRUE,
+                     status_output = c("folders", "column"),
+                     include_resolved = FALSE,
                      write_readable = FALSE, verbose = 2L) {
-  run_data_report(dvp, after, before = NULL, paths, kind = "cdi", id_col = id_col,
+  run_data_report(dvp, after, before, paths, kind = "cdi", id_col = id_col,
                   site_col = site_col, version = version, operator = operator,
                   check_info = check_info, query_column = query_column,
+                  status_output = status_output,
+                  include_resolved = include_resolved,
                   write_readable = write_readable, verbose = verbose)
 }
 
 #' Shared engine behind [save_dvr()] and [save_cdi()]
 #'
-#' Explicitly named (no hidden helper): the DVR and CDI wrappers differ only in
-#' their `kind` label and whether an update comparison is offered.
+#' Explicitly named (no hidden helper): the DVR and CDI wrappers differ only
+#' in their `kind` label.
 #' @inheritParams save_dvr
 #' @param kind `"dvr"` or `"cdi"`.
 #' @return Invisibly, a list describing the written report.
 #' @export
-run_data_report <- function(dvp, after, before = NULL, paths = getwd(),
+run_data_report <- function(dvp, after, before = "penultimate", paths = getwd(),
                             kind = c("dvr", "cdi"), id_col = "record_id",
                             site_col = NULL, version = NULL, operator = NULL,
                             check_info = NULL, query_column = TRUE,
@@ -638,6 +705,7 @@ run_data_report <- function(dvp, after, before = NULL, paths = getwd(),
     cli::cli_abort("{.arg paths} must name at least one output directory.")
   operator <- operator %||% unname(Sys.info()[["user"]]) %||% "unknown"
   trial <- report_trial_name(after)
+  before <- resolve_before_snapshot(before, after, verbose = verbose)
   compared <- !is.null(before)
 
   sheets <- if (compared) compare_dvp(dvp, before, after) else run_dvp(dvp, after)

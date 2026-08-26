@@ -7,7 +7,7 @@
 save_dvr(
   dvp,
   after,
-  before = NULL,
+  before = "penultimate",
   paths = getwd(),
   id_col = "record_id",
   site_col = NULL,
@@ -27,8 +27,14 @@ findings (see \code{\link[=run_dvp]{run_dvp()}}).}
 
 \item{after}{The current snapshot the report is about.}
 
-\item{before}{Optional earlier snapshot to compare against; when \code{NULL} the
-report lists the current findings with no change labelling and no \verb{update/}.}
+\item{before}{The earlier snapshot to compare against. Default
+\code{"penultimate"}: the snapshot immediately before \code{after} in its store is
+loaded automatically, so findings carry the change labelling on every
+routine run; when that resolution fails (a store with one snapshot, or an
+earlier directory the package cannot read, e.g. pre-rebuild snapshots),
+the report is issued uncompared with a message, never an error. Pass a
+\code{bctu_snapshot} to compare against explicitly, another selector string to
+resolve it from the store, or \code{NULL} for no comparison.}
 
 \item{paths}{One or more directories to receive the report (the report is
 written to each). Defaults to the working directory.}

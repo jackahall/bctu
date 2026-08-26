@@ -7,7 +7,7 @@
 run_data_report(
   dvp,
   after,
-  before = NULL,
+  before = "penultimate",
   paths = getwd(),
   kind = c("dvr", "cdi"),
   id_col = "record_id",
@@ -28,8 +28,14 @@ findings (see \code{\link[=run_dvp]{run_dvp()}}).}
 
 \item{after}{The current snapshot the report is about.}
 
-\item{before}{Optional earlier snapshot to compare against; when \code{NULL} the
-report lists the current findings with no change labelling and no \verb{update/}.}
+\item{before}{The earlier snapshot to compare against. Default
+\code{"penultimate"}: the snapshot immediately before \code{after} in its store is
+loaded automatically, so findings carry the change labelling on every
+routine run; when that resolution fails (a store with one snapshot, or an
+earlier directory the package cannot read, e.g. pre-rebuild snapshots),
+the report is issued uncompared with a message, never an error. Pass a
+\code{bctu_snapshot} to compare against explicitly, another selector string to
+resolve it from the store, or \code{NULL} for no comparison.}
 
 \item{paths}{One or more directories to receive the report (the report is
 written to each). Defaults to the working directory.}
@@ -94,6 +100,6 @@ manifest are always written.}
 Invisibly, a list describing the written report.
 }
 \description{
-Explicitly named (no hidden helper): the DVR and CDI wrappers differ only in
-their \code{kind} label and whether an update comparison is offered.
+Explicitly named (no hidden helper): the DVR and CDI wrappers differ only
+in their \code{kind} label.
 }

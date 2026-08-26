@@ -507,3 +507,125 @@ test_that("an explicitly named empty DVP is a valid zero-check report; a bare li
   expect_equal(man$total_findings, 0L)
   expect_length(man$checks, 0L)
 })
+
+test_that("save_dvr defaults to comparing against the previous snapshot in the store", {
+  skip_if_not_installed("openxlsx")
+  store   <- withr::local_tempdir()
+  out_dir <- withr::local_tempdir()
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+
+  snapA <- take_snapshot(datasource_example("redcap", n = 10L, seed = 1L),
+                         store = store, verbose = 0L)
+  Sys.sleep(1.1)
+  snapB <- take_snapshot(datasource_example("redcap", n = 12L, seed = 2L),
+                         store = store, verbose = 0L)
+
+  res <- save_dvr(dvp, after = snapB, paths = out_dir, verbose = 0L)
+  expect_true(res$compared)
+  man <- yaml::read_yaml(file.path(res$dirs[[1]], "manifest.yml"))
+  expect_equal(man$before_snapshot$id, attr(snapA, "id"))
+})
+
+test_that("the default comparison picks the snapshot before `after`, not the store's newest", {
+  skip_if_not_installed("openxlsx")
+  store   <- withr::local_tempdir()
+  out_dir <- withr::local_tempdir()
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+
+  snapA <- take_snapshot(datasource_example("redcap", n = 10L, seed = 1L),
+                         store = store, verbose = 0L)
+  Sys.sleep(1.1)
+  snapB <- take_snapshot(datasource_example("redcap", n = 10L, seed = 2L),
+                         store = store, verbose = 0L)
+  Sys.sleep(1.1)
+  snapC <- take_snapshot(datasource_example("redcap", n = 10L, seed = 3L),
+                         store = store, verbose = 0L)
+
+  # rerun on the middle snapshot: before must be A, never C
+  res <- save_dvr(dvp, after = snapB, paths = out_dir, verbose = 0L)
+  man <- yaml::read_yaml(file.path(res$dirs[[1]], "manifest.yml"))
+  expect_equal(man$before_snapshot$id, attr(snapA, "id"))
+
+  # rerun on the OLDEST snapshot: nothing earlier, so uncompared, no error
+  out2 <- withr::local_tempdir()
+  res2 <- save_dvr(dvp, after = snapA, paths = out2, verbose = 0L)
+  expect_false(res2$compared)
+})
+
+test_that("a store with one snapshot falls back to an uncompared report", {
+  skip_if_not_installed("openxlsx")
+  store   <- withr::local_tempdir()
+  out_dir <- withr::local_tempdir()
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+  snap <- take_snapshot(datasource_example("redcap", n = 10L, seed = 1L),
+                        store = store, verbose = 0L)
+  res <- save_dvr(dvp, snap, paths = out_dir, verbose = 0L)
+  expect_false(res$compared)
+  man <- yaml::read_yaml(file.path(res$dirs[[1]], "manifest.yml"))
+  expect_false(man$compared)
+})
+
+test_that("an unreadable earlier snapshot (pre-rebuild directory) falls back cleanly", {
+  skip_if_not_installed("openxlsx")
+  store   <- withr::local_tempdir()
+  out_dir <- withr::local_tempdir()
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+
+  # an old-format snapshot directory: valid id name, no manifest inside
+  dir.create(file.path(store, "2020-01-01T000000Z"))
+  snap <- take_snapshot(datasource_example("redcap", n = 10L, seed = 1L),
+                        store = store, verbose = 0L)
+
+  res <- save_dvr(dvp, snap, paths = out_dir, verbose = 0L)
+  expect_false(res$compared)
+  expect_length(res$dirs, 1L)
+})
+
+test_that("explicit before = NULL and an explicit before snapshot are honoured", {
+  skip_if_not_installed("openxlsx")
+  store   <- withr::local_tempdir()
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+
+  snapA <- take_snapshot(datasource_example("redcap", n = 10L, seed = 1L),
+                         store = store, verbose = 0L)
+  Sys.sleep(1.1)
+  snapB <- take_snapshot(datasource_example("redcap", n = 10L, seed = 2L),
+                         store = store, verbose = 0L)
+
+  out1 <- withr::local_tempdir()
+  res_null <- save_dvr(dvp, after = snapB, before = NULL, paths = out1, verbose = 0L)
+  expect_false(res_null$compared)
+
+  out2 <- withr::local_tempdir()
+  res_expl <- save_dvr(dvp, after = snapB, before = snapA, paths = out2, verbose = 0L)
+  expect_true(res_expl$compared)
+  man <- yaml::read_yaml(file.path(res_expl$dirs[[1]], "manifest.yml"))
+  expect_equal(man$before_snapshot$id, attr(snapA, "id"))
+})
+
+test_that("save_cdi carries the same default comparison and fallback", {
+  skip_if_not_installed("openxlsx")
+  store   <- withr::local_tempdir()
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+
+  snapA <- take_snapshot(datasource_example("redcap", n = 10L, seed = 1L),
+                         store = store, verbose = 0L)
+  out1 <- withr::local_tempdir()
+  res1 <- save_cdi(dvp, snapA, paths = out1, verbose = 0L)
+  expect_false(res1$compared)
+
+  Sys.sleep(1.1)
+  snapB <- take_snapshot(datasource_example("redcap", n = 12L, seed = 2L),
+                         store = store, verbose = 0L)
+  out2 <- withr::local_tempdir()
+  res2 <- save_cdi(dvp, snapB, paths = out2, verbose = 0L)
+  expect_true(res2$compared)
+  man <- yaml::read_yaml(file.path(res2$dirs[[1]], "manifest.yml"))
+  expect_equal(man$before_snapshot$id, attr(snapA, "id"))
+})
