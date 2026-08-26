@@ -13,7 +13,7 @@ errors are written in plain English.
 
 ```r
 # install.packages("remotes")
-remotes::install_github("jackahall/bctu-ng", subdir = "bctu")
+remotes::install_github("jackahall/bctu")
 ```
 
 ## The happy path

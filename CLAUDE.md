@@ -38,5 +38,5 @@ data managers who use bctu occasionally. Therefore:
 ## Layout
 - `R/` package code; one file per subsystem (config, datasource, snapshot,
   checks, report, validation).
-- Superfolder `~/projects/bctu-ng/` is the workspace; the package is `bctu/`.
-- The old package `~/projects/bctu/bctu` is the reference and is left untouched.
+- The package lives at the repo root (`~/projects/bctu/bctu`); workspace docs in `planning/`.
+- The old package is archived at `~/projects/bctu/bctu-legacy-0.14` as the reference.
