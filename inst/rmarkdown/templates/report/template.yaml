@@ -1,0 +1,6 @@
+name: BCTU trial report (Word)
+description: >
+  Word report with the BCTU title page, running header, landscape sections,
+  and numbered figure/table captions. See ?bctu::trial_report for the YAML
+  keys.
+create_dir: false

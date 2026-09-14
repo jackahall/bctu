@@ -1,0 +1,71 @@
+---
+# BCTU trial report -------------------------------------------------------
+# Title page is built by bctu's Lua filter from the keys below. Pandoc's
+# own title/author/date keys are ignored. Key reference:
+#   ?bctu::trial_report
+
+trial-short-name:    "ACRONYM"
+trial-long-name:     "Full trial title goes here"
+trial-registration:  "ISRCTN00000000"
+report-type:         "Data Monitoring Committee Report"
+report-subtype:      "Open Report"          # free text; delete if not needed
+
+# Metadata table (anchored to bottom-left of the title page). Each list
+# item is a row; the label is whatever you write before the colon. A value
+# may be a string, a list of strings, a {name, role} map, or a list of
+# {name, role} maps.
+metadata:
+  - Date:        "`r format(Sys.Date(), '%d %B %Y')`"
+  - Version:     "v1.0"
+  - Prepared by:
+      - name: "Your Name"
+        role: "Trial Statistician"
+  - Sponsor:     "University of Birmingham"
+
+# Optional Word table of contents (inserted after the title page).
+include-toc: true
+toc-depth:   3
+
+output:
+  bctu::trial_report: default
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(bctu)
+```
+
+# Introduction
+
+Body content starts here. Headings get auto-numbered.
+
+## Landscape section
+
+Wrap wide content in a `::: landscape` fenced div. The fences must each be
+on their own line, with a blank line above and below.
+
+::: landscape
+
+```{r example-landscape, opts.label = "fig_landscape", fig.cap = "Example landscape figure."}
+plot(cars)
+```
+
+:::
+
+## Portrait section
+
+Back to portrait outside the div. Use `opts.label = "fig_portrait"` for
+full-width portrait figures.
+
+```{r example-portrait, opts.label = "fig_portrait", fig.cap = "Example portrait figure."}
+plot(pressure)
+```
+
+Markdown tables get numbered captions too:
+
+Table: Example table caption.
+
+| Group | n  | Mean |
+|-------|----|------|
+| A     | 10 | 1.2  |
+| B     | 12 | 1.5  |

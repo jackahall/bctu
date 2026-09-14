@@ -183,7 +183,8 @@ render_report <- function(report, output_dir,
   # The styled DOCX title page needs the reference styles it targets, so with
   # no explicit template the bundled BCTU reference document is used.
   if (isTRUE(title_page) && "docx" %in% formats && is.null(template)) {
-    template <- system.file("report", "reference.docx", package = "bctu")
+    template <- system.file("rmarkdown", "templates", "report", "resources",
+                            "reference.docx", package = "bctu")
     if (verbose >= 1L)
       cli::cli_alert_info("using the bundled BCTU reference document for DOCX styles")
   }
@@ -231,7 +232,8 @@ render_report <- function(report, output_dir,
     run_pandoc(pandoc, md_path, out_path, fmt, template,
                toc = toc && !styled, number_sections = number_sections,
                lua_filter = if (styled)
-                 system.file("report", "title_page.lua", package = "bctu"))
+                 system.file("rmarkdown", "templates", "report", "resources",
+                             "title_page.lua", package = "bctu"))
     if (!file.exists(out_path) || file.info(out_path)$size == 0)
       cli::cli_abort("pandoc produced no {fmt} output at {.file {out_path}}.")
     outputs[[fmt]] <- out_path
@@ -461,3 +463,97 @@ make_filename_slug <- function(title) {
 #' Quote a string for a YAML metadata value
 #' @keywords internal
 yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
+
+# ---------------------------------------------------------------------------
+# rmarkdown output format: BCTU trial report (Word)
+# ---------------------------------------------------------------------------
+
+#' BCTU trial report Word output format
+#'
+#' An [rmarkdown::word_document()] output format for BCTU trial reports. It
+#' uses the bundled BCTU `reference.docx` (styles, running header and footer,
+#' logo) and the bundled `title_page.lua` pandoc filter, which builds the
+#' title page from YAML metadata, inserts an optional Word table of contents,
+#' turns `::: landscape` fenced divs into landscape sections, and numbers
+#' figure and table captions above their content.
+#'
+#' Declare the format in the YAML header of an `.Rmd` and render it with
+#' [rmarkdown::render()]:
+#'
+#' \preformatted{
+#' output:
+#'   bctu::trial_report: default
+#' }
+#'
+#' The title-page filter reads these YAML keys (pandoc's own `title`,
+#' `author` and `date` are not used):
+#' * `trial-short-name`, `trial-long-name`, `trial-registration`,
+#'   `report-type`, `report-subtype`: the title-page lines;
+#' * `metadata`: a list of rows for the table at the foot of the title page.
+#'   Each item is `Label: value`, where the value is a string, a list of
+#'   strings, a `{name, role}` map, or a list of such maps;
+#' * `include-toc` (`true`/`false`) and `toc-depth` (default 3): the Word
+#'   table of contents.
+#'
+#' In RStudio, **File > New File > R Markdown > From Template > "BCTU trial
+#' report (Word)"** opens a skeleton with every key filled in.
+#'
+#' @param ... Arguments passed to [rmarkdown::word_document()]. Any
+#'   `pandoc_args` are appended after the bundled Lua filter. A
+#'   `reference_docx` replaces the bundled BCTU template, with a warning.
+#' @return An rmarkdown output format object.
+#' @seealso [fig_portrait()] for the figure-size chunk templates.
+#' @export
+trial_report <- function(...) {
+  if (!requireNamespace("rmarkdown", quietly = TRUE))
+    cli::cli_abort(c("Package {.pkg rmarkdown} is needed for {.fn trial_report}.",
+                     "i" = "Install it with {.code install.packages(\"rmarkdown\")}."))
+  resource <- function(name) system.file("rmarkdown", "templates", "report",
+                                         "resources", name, package = "bctu")
+  defaults <- list(
+    reference_docx  = resource("reference.docx"),
+    toc             = FALSE,
+    number_sections = TRUE,
+    highlight       = "tango",
+    pandoc_args     = c("--lua-filter", resource("title_page.lua"))
+  )
+  dots <- list(...)
+  if (!is.null(dots$reference_docx))
+    cli::cli_warn(c(
+      "Using {.path {dots$reference_docx}} instead of the bundled BCTU reference.docx.",
+      "i" = "Headers, footers and styles may no longer match the BCTU template."
+    ))
+  if (!is.null(dots$pandoc_args))
+    dots$pandoc_args <- c(defaults$pandoc_args, dots$pandoc_args)
+  do.call(rmarkdown::word_document, utils::modifyList(defaults, dots))
+}
+
+#' Standard figure sizes for BCTU trial reports
+#'
+#' Full-width portrait and landscape figure sizes for A4 paper with 1 inch
+#' margins. When bctu is loaded they are registered as the knitr chunk
+#' templates `"fig_portrait"` and `"fig_landscape"`, used in a chunk header as
+#' `opts.label = "fig_landscape"`.
+#'
+#' @return A named list of knitr chunk options (`fig.width`, `fig.height`,
+#'   `out.width`).
+#' @examples
+#' fig_portrait()
+#' fig_landscape()
+#' @export
+fig_portrait <- function() {
+  list(fig.width = 6.25, fig.height = 7, out.width = "6.25in")
+}
+
+#' @rdname fig_portrait
+#' @export
+fig_landscape <- function() {
+  list(fig.width = 9.5, fig.height = 5, out.width = "9.5in")
+}
+
+# Registers the fig_portrait and fig_landscape knitr chunk templates on load.
+.onLoad <- function(libname, pkgname) {
+  if (requireNamespace("knitr", quietly = TRUE))
+    knitr::opts_template$set(fig_portrait = fig_portrait(),
+                             fig_landscape = fig_landscape())
+}

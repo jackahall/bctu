@@ -1,3 +1,15 @@
+# bctu 0.20.0
+
+## Changes
+
+* `trial_report()` restored: the `bctu::trial_report` rmarkdown Word format with the bundled BCTU reference.docx, title-page Lua filter, logo and RStudio template.
+* `fig_portrait()` and `fig_landscape()` restored, with the `"fig_portrait"`/`"fig_landscape"` knitr chunk templates registered on load.
+* New report-table helpers for Rmd reports: `render_table()`, `grid_table()`, `col_widths()`, `banner_row()`, `indent()` and `n_pct()`.
+* `render_table()` escapes a leading `-`, `+` or `*` in a cell so pandoc no longer drops it as a list bullet.
+* New reason-map utilities: `squash_text()`, `update_reason_map()` and `map_clean()`.
+* The bundled reference.docx and title_page.lua moved to `inst/rmarkdown/templates/report/resources/`; `render_report()` reads them there.
+* `render_trial_report()` from 0.14 is not restored; use `render_report()` or `rmarkdown::render()`.
+
 # bctu 0.19.0
 
 ## Changes
