@@ -1,3 +1,18 @@
+# bctu 0.21.0
+
+## Changes
+
+* University of Birmingham colours restored from 0.14: `uob_palettes`, `uob_tint()`, `show_uob_palettes()`, `pal_uob()` and the discrete and continuous `scale_colour_uob()` / `scale_color_uob()` / `scale_fill_uob()` / `*_uob_c()` scales.
+* `theme_bctu_report()` restored: the shared figure theme used by BCTU Word trial reports.
+* New `count_by_month()`: monthly counts with every calendar month present, so months with no events show as `n = 0`.
+* `pal_uob()` applies `alpha` as ggsci does, over 8-bit channels.
+
+# bctu 0.21.0
+
+## Changes
+
+* New University of Birmingham colour scales in ggsci style: `pal_uob()`, `scale_colour_uob()`, `scale_color_uob()`, `scale_fill_uob()` and `uob_colours()`.
+
 # bctu 0.20.0
 
 ## Changes

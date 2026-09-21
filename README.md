@@ -101,6 +101,16 @@ render_report(report, formats = c("docx", "pdf"))   # one table object, both for
 Every rendered report embeds a manifest (snapshot id and SHA-256, data-cut date,
 package / pandoc / LaTeX versions, template hash).
 
+## Figure colours and theme
+
+```r
+ggplot(df, aes(month, n, fill = arm)) + geom_col() +
+  scale_fill_uob("deep") + theme_bctu_report()
+uob_palettes$deep          # named hex vector
+show_uob_palettes()        # preview every palette
+count_by_month(rand_date, to = freeze_date)   # months with no recruits kept as n = 0
+```
+
 ## Checking the environment
 
 ```r
