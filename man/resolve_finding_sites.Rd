@@ -2,9 +2,9 @@
 % Please edit documentation in R/checks.R
 \name{resolve_finding_sites}
 \alias{resolve_finding_sites}
-\title{Site label for each finding row, from the findings themselves or a snapshot}
+\title{Group label for each finding row, from the findings themselves or a snapshot}
 \usage{
-resolve_finding_sites(findings, snapshots, id_col, site_col)
+resolve_finding_sites(findings, snapshots, id_col, group_col)
 }
 \arguments{
 \item{findings}{A findings data frame.}
@@ -14,17 +14,18 @@ priority when a record's site conflicts across snapshots).}
 
 \item{id_col}{Name of the record-id column shared by findings and data.}
 
-\item{site_col}{Name of the site column in the findings and/or the data.}
+\item{group_col}{Name of the grouping column (a site, a country, ...) in the
+findings and/or the data.}
 }
 \value{
 A character vector of sites, one per finding row.
 }
 \description{
-A finding that carries \code{site_col} as one of its own columns is sited from
+A finding that carries \code{group_col} as one of its own columns is sited from
 that column directly, row by row (a trial whose dataset has no single id
 column can still split per site by selecting the site into each finding).
 Rows without their own site are resolved from the snapshot(s): any table
-holding both \code{id_col} and \code{site_col} maps a record to a site. Pass both the
+holding both \code{id_col} and \code{group_col} maps a record to a site. Pass both the
 \code{before} and \code{after} snapshots when comparing, so a \code{resolved} finding whose
 record was removed from \code{after} is still sited from \code{before}. Findings with
 no site by either route are labelled \code{NO_SITE} so they are never silently

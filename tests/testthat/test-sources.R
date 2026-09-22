@@ -140,3 +140,69 @@ test_that("blank CSV cells parse to NA, in typed and character columns alike", {
   expect_true(is.na(d$weight[1]))
   expect_equal(d$repeat_instr[2], "form_x")
 })
+
+test_that("empty REDCap columns take the type their dictionary entry implies", {
+  dictionary <- data.frame(
+    field_name = c("age", "consent", "visit_date", "comment"),
+    field_type = c("text", "radio", "text", "notes"),
+    select_choices_or_calculations = c("", "0, No | 1, Yes", "", ""),
+    text_validation_type_or_show_slider_number = c("number", "", "date_ymd", ""),
+    stringsAsFactors = FALSE)
+
+  records <- data.frame(record_id = c("E001", "E002"), stringsAsFactors = FALSE)
+  records$age <- NA; records$consent <- NA
+  records$visit_date <- NA; records$comment <- NA
+
+  out <- redcap_type_empty_columns(records, dictionary)
+  expect_type(out$age, "double")
+  expect_s3_class(out$visit_date, "Date")
+  expect_type(out$comment, "character")
+
+  skip_if_not_installed("haven")
+  expect_s3_class(out$consent, "haven_labelled")
+  expect_identical(unname(attr(out$consent, "labels")), c(0, 1))
+})
+
+test_that("columns that already hold data keep the type they were read as", {
+  dictionary <- data.frame(
+    field_name = "age", field_type = "text",
+    select_choices_or_calculations = "",
+    text_validation_type_or_show_slider_number = "number",
+    stringsAsFactors = FALSE)
+
+  records <- data.frame(record_id = "E001", age = 42L, stringsAsFactors = FALSE)
+  out <- redcap_type_empty_columns(records, dictionary)
+  expect_identical(out$age, 42L)
+})
+
+test_that("empty checkbox columns are typed through the field-name export", {
+  skip_if_not_installed("haven")
+  dictionary <- data.frame(
+    field_name = "symptoms", field_type = "checkbox",
+    select_choices_or_calculations = "1, Pain | 2, Fever",
+    text_validation_type_or_show_slider_number = NA_character_,
+    stringsAsFactors = FALSE)
+  field_names <- data.frame(
+    original_field_name = c("symptoms", "symptoms"),
+    export_field_name = c("symptoms___1", "symptoms___2"),
+    stringsAsFactors = FALSE)
+
+  records <- data.frame(record_id = "E001", stringsAsFactors = FALSE)
+  records$symptoms___1 <- NA; records$symptoms___2 <- NA
+
+  out <- redcap_type_empty_columns(records, dictionary, field_names)
+  expect_s3_class(out$symptoms___1, "haven_labelled")
+  expect_s3_class(out$symptoms___2, "haven_labelled")
+})
+
+test_that("a sparsely completed coded field is typed from every row, not a sample", {
+  skip_if_not_installed("readr")
+  n <- 100000L
+  x <- rep("", n)
+  x[33333L + 0:2] <- c("1", "2", "3")   # rows readr's 1000-row sample skips
+  csv <- paste(c("record_id,cond", paste0(seq_len(n), ",", x)), collapse = "\n")
+
+  parsed <- redcap_read_csv(csv)
+  expect_type(parsed$cond, "double")
+  expect_identical(parsed$cond[!is.na(parsed$cond)], c(1, 2, 3))
+})

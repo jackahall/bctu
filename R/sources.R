@@ -98,6 +98,8 @@ datasource_redcap <- function(token_id, url, report_id = NULL, labelled = TRUE,
     field_names <- redcap_field_names(config$url, token)
     if (isTRUE(config$labelled))
       records <- redcap_apply_labels(records, dictionary, field_names)
+    records <- redcap_type_empty_columns(records, dictionary, field_names,
+                                         labelled = isTRUE(config$labelled))
 
     attr(records, "redcap_dictionary")  <- dictionary
     attr(records, "redcap_field_names") <- field_names
@@ -211,6 +213,15 @@ redcap_parse_records <- function(csv_text) {
   redcap_read_csv(csv_text)
 }
 
+#' Parse a REDCap CSV export
+#'
+#' Column types are guessed from every row (`guess_max = Inf`), never from a
+#' sample: a sparsely completed field whose entered values all fall outside a
+#' sample is otherwise read as logical, `1` becomes `TRUE` and every other code
+#' is dropped as a parsing problem.
+#' @param csv_text The export body.
+#' @param as_character Read every column as character?
+#' @return A data frame.
 #' @keywords internal
 redcap_read_csv <- function(csv_text, as_character = FALSE) {
   if (!nzchar(csv_text)) return(data.frame())
@@ -219,7 +230,7 @@ redcap_read_csv <- function(csv_text, as_character = FALSE) {
                            colClasses = "character", check.names = FALSE))
   if (requireNamespace("readr", quietly = TRUE))
     as.data.frame(readr::read_csv(I(csv_text), show_col_types = FALSE,
-                                  na = c("", "NA")))
+                                  na = c("", "NA"), guess_max = Inf))
   else
     utils::read.csv(text = csv_text, stringsAsFactors = FALSE,
                     colClasses = "character", check.names = FALSE,
@@ -253,15 +264,7 @@ redcap_apply_labels <- function(records, dictionary, field_names = NULL) {
   # `x` with choices 1..n arrives as columns `x___1` .. `x___n`, so matching
   # dictionary rows straight onto column names misses every checkbox. Without
   # the export map, fall back to the identity mapping (no checkbox coverage).
-  map <- if (!is.null(field_names) &&
-             all(c("original_field_name", "export_field_name") %in% names(field_names))) {
-    field_names[, c("original_field_name", "export_field_name",
-                    intersect("choice_value", names(field_names)))]
-  } else {
-    data.frame(original_field_name = dictionary$field_name,
-               export_field_name = dictionary$field_name,
-               stringsAsFactors = FALSE)
-  }
+  map <- redcap_export_field_map(dictionary, field_names)
   dict_at <- match(map$original_field_name, dictionary$field_name)
 
   for (j in seq_len(nrow(map))) {
@@ -308,6 +311,105 @@ redcap_labelled <- function(x, choices) {
     x <- as.character(x)
   }
   haven::labelled(x, labels = values)
+}
+
+#' Map REDCap dictionary field names to their exported column names
+#'
+#' A checkbox field `x` with choices 1..n is exported as columns `x___1` ..
+#' `x___n`, so dictionary field names do not match column names directly. The
+#' field-name export carries the mapping; without it the identity mapping is
+#' used and checkbox columns are not covered.
+#' @param dictionary REDCap data dictionary data frame.
+#' @param field_names Optional REDCap field-name export with
+#'   `original_field_name` and `export_field_name` columns.
+#' @return A data frame with `original_field_name` and `export_field_name`.
+#' @keywords internal
+redcap_export_field_map <- function(dictionary, field_names = NULL) {
+  if (!is.null(field_names) &&
+      all(c("original_field_name", "export_field_name") %in% names(field_names)))
+    return(field_names[, c("original_field_name", "export_field_name",
+                           intersect("choice_value", names(field_names)))])
+  data.frame(original_field_name = dictionary$field_name,
+             export_field_name = dictionary$field_name,
+             stringsAsFactors = FALSE)
+}
+
+#' Empty column of the type a REDCap text validation implies
+#'
+#' The types match what the CSV reader guesses for the same field once it holds
+#' data: ISO dates and datetimes are read as `Date` and `POSIXct`, every other
+#' date format is read as text.
+#' @param validation A `text_validation_type_or_show_slider_number` value.
+#' @param n Column length.
+#' @return A length-`n` vector of `NA`s of that type.
+#' @keywords internal
+redcap_empty_typed_column <- function(validation, n) {
+  v <- if (is.null(validation) || is.na(validation)) "" else as.character(validation)
+  if (grepl("^(integer|number)", v)) rep(NA_real_, n)
+  else if (identical(v, "date_ymd")) as.Date(rep(NA_character_, n))
+  else if (grepl("^datetime(_seconds)?_ymd$", v)) as.POSIXct(rep(NA_character_, n), tz = "UTC")
+  else rep(NA_character_, n)
+}
+
+#' Type the columns REDCap exported empty, from the data dictionary
+#'
+#' A field with no data anywhere in the extract arrives as an all-`NA` logical
+#' column, because the CSV reader has nothing to guess a type from. Once one
+#' value is entered the next extract reads the same field as a number, a date
+#' or a labelled code, so the column changes type between snapshots and any
+#' before/after comparison of it fails. This gives every empty column the type
+#' its dictionary entry implies, so a field's type does not depend on how much
+#' data has been entered. Columns the dictionary does not describe, and columns
+#' that already hold data, are left alone.
+#' @param records Records data frame.
+#' @param dictionary REDCap data dictionary data frame.
+#' @param field_names Optional REDCap field-name export (see
+#'   [redcap_apply_labels()]).
+#' @param labelled Type coded fields (radio, dropdown, yesno, checkbox) as
+#'   haven-style labelled vectors? When `FALSE` they take the type of their
+#'   codes.
+#' @return `records` with its empty columns typed.
+#' @export
+redcap_type_empty_columns <- function(records, dictionary, field_names = NULL,
+                                      labelled = TRUE) {
+  if (is.null(dictionary) || !nrow(dictionary)) return(records)
+  needed <- c("field_name", "field_type", "select_choices_or_calculations")
+  if (!all(needed %in% names(dictionary))) return(records)
+
+  map <- redcap_export_field_map(dictionary, field_names)
+  dict_at <- match(map$original_field_name, dictionary$field_name)
+  validation_col <- "text_validation_type_or_show_slider_number"
+  validation <- if (validation_col %in% names(dictionary)) dictionary[[validation_col]]
+                else rep(NA_character_, nrow(dictionary))
+  use_labels <- isTRUE(labelled) && requireNamespace("haven", quietly = TRUE)
+  n <- nrow(records)
+
+  for (j in seq_len(nrow(map))) {
+    i <- dict_at[j]
+    if (is.na(i)) next
+    col <- map$export_field_name[j]
+    if (!col %in% names(records)) next
+    x <- records[[col]]
+    if (!is.logical(x) || !all(is.na(x))) next
+    type <- dictionary$field_type[i]
+
+    if (type %in% c("yesno", "checkbox", "radio", "dropdown")) {
+      choices <- if (type %in% c("yesno", "checkbox"))
+        data.frame(code = c("0", "1"), label = c("No", "Yes"), stringsAsFactors = FALSE)
+      else redcap_parse_choices(dictionary$select_choices_or_calculations[i])
+      if (is.null(choices) || !nrow(choices)) next
+      blank <- rep(NA_character_, n)
+      numeric_codes <- suppressWarnings(!any(is.na(as.numeric(choices$code))))
+      records[[col]] <- if (use_labels) redcap_labelled(blank, choices)
+                        else if (numeric_codes) rep(NA_real_, n)
+                        else blank
+    } else if (type %in% c("calc", "slider")) {
+      records[[col]] <- rep(NA_real_, n)
+    } else {
+      records[[col]] <- redcap_empty_typed_column(validation[i], n)
+    }
+  }
+  records
 }
 
 # ===========================================================================

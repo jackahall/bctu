@@ -4,16 +4,19 @@
 \alias{bind_findings}
 \title{Row-bind two findings frames, tolerating differing columns}
 \usage{
-bind_findings(x, y)
+bind_findings(x, y, check = NULL)
 }
 \arguments{
 \item{x, y}{Findings data frames.}
+
+\item{check}{Optional check name, named in any alignment warning.}
 }
 \value{
 One data frame with the union of columns.
 }
 \description{
-The \code{before} and \code{after} findings for one check share the same columns, so
-this is a plain \code{rbind} in normal use; the column union only matters for the
-edge case where a check appears in one run but not the other.
+The \code{before} and \code{after} findings for one check share the same columns and
+types in normal use, so this is a plain \code{rbind}; \code{\link[=align_findings]{align_findings()}} handles
+a check that appears in one run but not the other, and a column whose type
+changed between the two extracts.
 }

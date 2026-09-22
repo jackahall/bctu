@@ -1,3 +1,19 @@
+# bctu 0.22.0
+
+## Changes
+
+* `save_dvr()`, `save_cdi()`, `run_data_report()` and `write_report_set()` take `split_by`, an ordered vector of grouping columns (outermost first) in place of `site_col`. Folders nest, one level per column, and every level gets its own workbook: `split_by = c("country", "site")` writes a workbook per country and, inside it, one per site. `site_col` is removed.
+* `check_split_nesting()`: an inner group appearing under more than one outer group is an error before anything is written.
+* `include_resolved` defaults to `TRUE`, so a compared report writes `full/`, `new/` and `resolved/` at every level.
+* `summary.md` written beside `manifest.yml`: run identity, findings per check, and findings per group at every level, each as current / new / unchanged / resolved.
+* `finding_group_labels()` and `write_report_summary()` exported.
+
+## Fixes
+
+* REDCap exports are typed from every row (`guess_max = Inf`). A sparsely completed field whose entered values all fell outside readr's 1000-row sample was read as logical, so `1` became `TRUE` and every other code was silently dropped.
+* `redcap_type_empty_columns()`: a field with no data in an extract takes the type its dictionary entry implies (labelled code, number, date or text) instead of logical, so a column no longer changes type between snapshots once its first value is entered.
+* `align_findings()`: `bind_findings()` fills a missing column with typed `NA`s and widens a column whose type differs between the two snapshots to text with a warning, instead of failing with `Can't convert <logical> to <labelled<double>>`.
+
 # bctu 0.21.0
 
 ## Changes

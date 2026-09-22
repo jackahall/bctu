@@ -79,8 +79,8 @@ ocean_dvp <- function(data) {
   )
 }
 
-save_dvr(ocean_dvp, after = snap, site_col = "site")             # a fresh DVR
-save_dvr(ocean_dvp, after = snap, before = previous, site_col = "site")  # with an update diff
+save_dvr(ocean_dvp, after = snap, split_by = "site")             # a fresh DVR
+save_dvr(ocean_dvp, after = snap, before = previous, split_by = "site")  # with an update diff
 ```
 
 `save_dvr()` writes an overall workbook plus one per site, an update set (new /

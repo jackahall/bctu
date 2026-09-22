@@ -10,13 +10,13 @@ save_dvr(
   before = "penultimate",
   paths = getwd(),
   id_col = "record_id",
-  site_col = NULL,
+  split_by = NULL,
   version = NULL,
   operator = NULL,
   check_info = NULL,
   query_column = TRUE,
   status_output = c("folders", "column"),
-  include_resolved = FALSE,
+  include_resolved = TRUE,
   write_readable = FALSE,
   verbose = 2L
 )
@@ -39,11 +39,13 @@ resolve it from the store, or \code{NULL} for no comparison.}
 \item{paths}{One or more directories to receive the report (the report is
 written to each). Defaults to the working directory.}
 
-\item{id_col}{Record-id column used to map findings to sites. Default
+\item{id_col}{Record-id column used to map findings to groups. Default
 \code{"record_id"}.}
 
-\item{site_col}{Site column in the data; when \code{NULL} (default) no per-site
-split is written.}
+\item{split_by}{Columns in the data to split the report by, outermost
+first; when \code{NULL} (default) no split is written. One column writes a
+folder and workbook per site; \code{c("country", "site")} writes a folder and
+workbook per country, and a folder and workbook per site inside it.}
 
 \item{version}{Optional DVP version string, recorded and added to file names.}
 
@@ -80,11 +82,11 @@ changed rows. Ignored when there is no \code{before} snapshot. The returned
 per-check tallies (including resolved) either way.}
 
 \item{include_resolved}{Also write the findings resolved since \code{before}
-(rows present in \code{before} but gone from \code{after})? Default \code{FALSE}: a
-resolved row shows the BEFORE snapshot's data values, stale against the
-current extract, so resolved rows are left out unless asked for. When
-\code{TRUE}, \code{"folders"} adds a \verb{resolved/} set and \code{"column"} keeps resolved
-rows (labelled \code{resolved}) in \verb{full/} and the \verb{update/} set.}
+(rows present in \code{before} but gone from \code{after})? Default \code{TRUE}:
+\code{"folders"} adds a \verb{resolved/} set and \code{"column"} keeps resolved rows
+(labelled \code{resolved}) in \verb{full/} and the \verb{update/} set. A resolved row
+shows the BEFORE snapshot's data values, stale against the current
+extract; set \code{FALSE} to leave resolved rows out of the written files.}
 
 \item{write_readable}{Also write per-check CSV/TXT copies of the findings?
 Default \code{FALSE}: the delivered record is the workbook (one worksheet per
@@ -102,8 +104,9 @@ Runs \code{dvp} on the \code{after} snapshot and writes, under every directory i
 \code{paths}, the house layout \verb{<path>/<after snapshot id>/v<version>/} (a folder
 per data state, then a folder per controlled document version; without a
 \code{version}, \verb{<path>/<after snapshot id>/} directly): an overall workbook (one
-worksheet per non-empty check) plus per-site workbooks when \code{site_col} is
-given, the readable CSV/TXT copies, and an auditable YAML manifest. A rerun
+worksheet per non-empty check) plus per-group workbooks when \code{split_by} is
+given, the readable CSV/TXT copies, an auditable YAML manifest and a
+markdown \code{summary.md} of the counts per check and per group. A rerun
 of the same snapshot and version suffixes the leaf folder \verb{_N}, never
 silently overwriting. When a \code{before} snapshot is supplied, each finding
 is labelled \code{new} / \code{unchanged} / \code{resolved} by a whole-row comparison of the

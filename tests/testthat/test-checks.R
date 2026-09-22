@@ -99,15 +99,15 @@ test_that("save_dvr with a before snapshot writes full/new/resolved folders by d
                   operator = "tester", write_readable = TRUE, verbose = 0L)
   expect_true(res$compared)
   expect_equal(res$status_output, "folders")
-  expect_false(res$include_resolved)
+  expect_true(res$include_resolved)
   expect_true("status" %in% names(res$sheets$outcome_positive))
   expect_true(dir.exists(file.path(res$dirs[[1]], "full")))
   expect_true(dir.exists(file.path(res$dirs[[1]], "new")))
-  expect_false(dir.exists(file.path(res$dirs[[1]], "resolved")))
+  expect_true(dir.exists(file.path(res$dirs[[1]], "resolved")))
   expect_false(dir.exists(file.path(res$dirs[[1]], "update")))
 
   # The folders carry the status, so the written files have no status column;
-  # full = unchanged + new, and resolved rows (stale before-values) are absent.
+  # full = unchanged + new, resolved rows sit in resolved/ only.
   full_csv <- utils::read.csv(file.path(res$dirs[[1]], "full", "outcome_positive.csv"))
   expect_false("status" %in% names(full_csv))
   st <- res$sheets$outcome_positive$status
@@ -115,11 +115,13 @@ test_that("save_dvr with a before snapshot writes full/new/resolved folders by d
   new_csv <- utils::read.csv(file.path(res$dirs[[1]], "new", "outcome_positive.csv"))
   expect_false("status" %in% names(new_csv))
   expect_equal(nrow(new_csv), sum(st == "new"))
+  resolved_csv <- utils::read.csv(file.path(res$dirs[[1]], "resolved", "outcome_positive.csv"))
+  expect_equal(nrow(resolved_csv), sum(st == "resolved"))
 
   man <- yaml::read_yaml(file.path(res$dirs[[1]], "manifest.yml"))
   expect_true(man$compared)
   expect_equal(man$status_output, "folders")
-  expect_false(man$include_resolved)
+  expect_true(man$include_resolved)
   expect_equal(man$before_snapshot$id, attr(snapA, "id"))
   expect_equal(man$after_snapshot$id, attr(snapB, "id"))
 
@@ -162,17 +164,18 @@ test_that("save_dvr status_output = 'column' keeps the status column and update 
   expect_false(dir.exists(file.path(res$dirs[[1]], "new")))
   expect_false(dir.exists(file.path(res$dirs[[1]], "resolved")))
 
-  # Default excludes resolved rows (stale before-values) from full/ and update/.
+  # Default keeps resolved rows, labelled, in full/ and update/.
+  st <- res$sheets$outcome_positive$status
   full_csv <- utils::read.csv(file.path(res$dirs[[1]], "full", "outcome_positive.csv"))
   expect_true("status" %in% names(full_csv))
-  expect_false("resolved" %in% full_csv$status)
+  expect_equal(sum(full_csv$status == "resolved"), sum(st == "resolved"))
   upd_csv <- utils::read.csv(file.path(res$dirs[[1]], "update", "outcome_positive.csv"))
-  expect_true(all(upd_csv$status == "new"))
+  expect_true(all(upd_csv$status %in% c("new", "resolved")))
 
   man <- yaml::read_yaml(file.path(res$dirs[[1]], "manifest.yml"))
   expect_true(man$compared)
   expect_equal(man$status_output, "column")
-  expect_false(man$include_resolved)
+  expect_true(man$include_resolved)
 
   # include_resolved = TRUE restores the resolved-labelled rows.
   out_dir2 <- withr::local_tempdir()
@@ -204,7 +207,7 @@ test_that("save_dvr writes to every path in paths", {
   expect_true(file.exists(file.path(res$dirs[[2]], "full", "all_records.csv")))
 })
 
-test_that("save_dvr splits per site plus overall when site_col is given", {
+test_that("save_dvr splits per site plus overall when split_by is given", {
   skip_if_not_installed("openxlsx")
   store   <- withr::local_tempdir()
   out_dir <- withr::local_tempdir()
@@ -217,7 +220,7 @@ test_that("save_dvr splits per site plus overall when site_col is given", {
     data.frame(record_id = data$records$record_id))
 
   res <- save_dvr(dvp, snap, paths = out_dir, id_col = "record_id",
-                  site_col = "site", verbose = 0L)
+                  split_by = "site", verbose = 0L)
 
   full <- file.path(res$dirs[[1]], "full")
   expect_true(length(list.files(full, pattern = "\\.xlsx$")) >= 1L)   # overall
@@ -239,7 +242,7 @@ test_that("a resolved finding whose record was removed from after is still sited
     record_id = data$records$record_id, note = "issue", stringsAsFactors = FALSE))
 
   res <- save_dvr(dvp, after = after, before = before, paths = out_dir,
-                  id_col = "record_id", site_col = "site",
+                  id_col = "record_id", split_by = "site",
                   include_resolved = TRUE, write_readable = TRUE, verbose = 0L)
 
   resolved <- file.path(res$dirs[[1]], "resolved")
@@ -281,7 +284,7 @@ test_that("write_report_set warns per check with findings that cannot be mapped 
 
   expect_warning(
     write_report_set(sheets, snapshot, dir, "base", id_col = "record_id",
-                     site_col = "site", write_readable = TRUE),
+                     split_by = "site", write_readable = TRUE),
     "could not be mapped to a site")
 })
 
@@ -419,7 +422,7 @@ test_that("checks_index leads every workbook, per-site included", {
   info <- data.frame(check = "all_records", query = "Confirm the record.")
 
   res <- save_dvr(dvp, snap, paths = out_dir, id_col = "record_id",
-                  site_col = "site", check_info = info,                   verbose = 0L)
+                  split_by = "site", check_info = info,                   verbose = 0L)
 
   full <- file.path(res$dirs[[1]], "full")
   master <- list.files(full, pattern = "\\.xlsx$", full.names = TRUE)[1]
@@ -628,4 +631,130 @@ test_that("save_cdi carries the same default comparison and fallback", {
   expect_true(res2$compared)
   man <- yaml::read_yaml(file.path(res2$dirs[[1]], "manifest.yml"))
   expect_equal(man$before_snapshot$id, attr(snapA, "id"))
+})
+
+test_that("split_by nests the folders and writes a workbook at every level", {
+  skip_if_not_installed("openxlsx")
+  out_dir <- withr::local_tempdir()
+
+  after <- list(records = data.frame(
+    record_id = c("E001", "E002", "E003"),
+    country   = c("UK", "UK", "Ireland"),
+    site      = c("Site_01", "Site_02", "Site_03"),
+    stringsAsFactors = FALSE))
+
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+
+  res <- save_dvr(dvp, after, before = NULL, paths = out_dir,
+                  id_col = "record_id", split_by = c("country", "site"),
+                  verbose = 0L)
+
+  full <- file.path(res$dirs[[1]], "full")
+  uk <- file.path(full, "sites", "UK")
+  expect_true(dir.exists(file.path(uk, "Site_01")))
+  expect_true(dir.exists(file.path(uk, "Site_02")))
+  expect_true(dir.exists(file.path(full, "sites", "Ireland", "Site_03")))
+  expect_length(list.files(uk, pattern = "\\.xlsx$"), 1L)
+  expect_length(list.files(file.path(uk, "Site_01"), pattern = "\\.xlsx$"), 1L)
+  expect_identical(unlist(res$manifest$split_by), c("country", "site"))
+})
+
+test_that("split_by must name at least one column", {
+  expect_error(resolve_split_by(character(0)), "at least one column")
+  expect_error(resolve_split_by(c("country", NA)), "at least one column")
+  expect_identical(resolve_split_by("site"), "site")
+  expect_null(resolve_split_by(NULL))
+})
+
+test_that("bind_findings fills a missing column with NAs of that column's type", {
+  x <- data.frame(record_id = "E001", stringsAsFactors = FALSE)
+  x$visit_date <- as.Date("2026-01-01")
+  y <- data.frame(record_id = "E002", stringsAsFactors = FALSE)
+
+  out <- bind_findings(x, y)
+  expect_s3_class(out$visit_date, "Date")
+  expect_true(is.na(out$visit_date[2]))
+})
+
+test_that("an empty column takes the other frame's type, silently", {
+  x <- data.frame(record_id = "E001", stringsAsFactors = FALSE)
+  x$value <- NA
+  y <- data.frame(record_id = "E002", value = 3, stringsAsFactors = FALSE)
+
+  out <- bind_findings(x, y)
+  expect_type(out$value, "double")
+  expect_identical(out$value, c(NA_real_, 3))
+})
+
+test_that("a column that changed type between snapshots is widened to text", {
+  x <- data.frame(record_id = "E001", value = 12, stringsAsFactors = FALSE)
+  y <- data.frame(record_id = "E002", value = "12 or 13", stringsAsFactors = FALSE)
+
+  expect_warning(out <- bind_findings(x, y, check = "demo"), "changed type")
+  expect_type(out$value, "character")
+  expect_identical(out$value, c("12", "12 or 13"))
+})
+
+test_that("compare_dvp survives a field that was empty in the before snapshot", {
+  skip_if_not_installed("haven")
+  before <- list(records = data.frame(record_id = c("E001", "E002"),
+                                      stringsAsFactors = FALSE))
+  before$records$coded <- NA
+  after <- list(records = data.frame(record_id = c("E001", "E002"),
+                                     stringsAsFactors = FALSE))
+  after$records$coded <- haven::labelled(c(1, NA), labels = c(No = 0, Yes = 1))
+
+  dvp <- function(data) list(demo = data$records[1, , drop = FALSE])
+
+  out <- compare_dvp(dvp, before, after)
+  expect_equal(nrow(out$demo), 2L)
+  expect_setequal(out$demo$status, c("new", "resolved"))
+})
+
+test_that("an inner group appearing under two outer groups is an error", {
+  skip_if_not_installed("openxlsx")
+  out_dir <- withr::local_tempdir()
+  after <- list(records = data.frame(
+    record_id = c("E001", "E002"),
+    country   = c("UK", "Ireland"),
+    site      = c("Site_01", "Site_01"),
+    stringsAsFactors = FALSE))
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+
+  expect_error(
+    save_dvr(dvp, after, before = NULL, paths = out_dir,
+             split_by = c("country", "site"), verbose = 0L),
+    "does not nest")
+})
+
+test_that("a compared report writes resolved/ by default and a summary per group", {
+  skip_if_not_installed("openxlsx")
+  out_dir <- withr::local_tempdir()
+  before <- list(records = data.frame(
+    record_id = c("E001", "E002", "E003"),
+    country   = c("UK", "UK", "Ireland"),
+    site      = c("Site_01", "Site_02", "Site_03"),
+    stringsAsFactors = FALSE))
+  after <- before
+  after$records <- after$records[-1, ]        # E001 resolved
+  after$records <- rbind(after$records, data.frame(
+    record_id = "E004", country = "Ireland", site = "Site_03",
+    stringsAsFactors = FALSE))                 # E004 new
+
+  dvp <- function(data) list(all_records =
+    data.frame(record_id = data$records$record_id))
+  res <- save_dvr(dvp, after, before = before, paths = out_dir,
+                  split_by = c("country", "site"), verbose = 0L)
+
+  dir <- res$dirs[[1]]
+  expect_true(dir.exists(file.path(dir, "resolved", "sites", "UK", "Site_01")))
+  expect_true(dir.exists(file.path(dir, "new", "sites", "Ireland", "Site_03")))
+
+  summary <- readLines(file.path(dir, "summary.md"))
+  expect_true(any(grepl("^## Findings by country and site$", summary)))
+  expect_true(any(grepl("^\\| Overall \\| 3 \\| 1 \\| 2 \\| 1 \\|$", summary)))
+  expect_true(any(grepl("^\\| UK \\| 1 \\| 0 \\| 1 \\| 1 \\|$", summary)))
+  expect_true(any(grepl("^\\| Ireland / Site_03 \\| 2 \\| 1 \\| 1 \\| 0 \\|$", summary)))
 })

@@ -2,7 +2,7 @@
 % Please edit documentation in R/checks.R
 \name{write_report_set}
 \alias{write_report_set}
-\title{Write one report set: an overall workbook plus (optionally) per-site output}
+\title{Write one report set: an overall workbook plus (optionally) a group split}
 \usage{
 write_report_set(
   sheets,
@@ -10,7 +10,7 @@ write_report_set(
   dir,
   base_name,
   id_col = "record_id",
-  site_col = NULL,
+  split_by = NULL,
   write_readable = FALSE,
   before_snapshot = NULL,
   check_info = NULL
@@ -19,35 +19,41 @@ write_report_set(
 \arguments{
 \item{sheets}{A named list of findings data frames (empty checks omitted).}
 
-\item{snapshot}{The snapshot the findings came from (for site lookup).}
+\item{snapshot}{The snapshot the findings came from (for group lookup).}
 
 \item{dir}{Directory to write this set into.}
 
 \item{base_name}{File stem for the workbooks.}
 
-\item{id_col, site_col}{Columns used to split by site; \code{site_col = NULL}
-writes the overall workbook only.}
+\item{id_col}{Record-id column used to map findings to groups.}
+
+\item{split_by}{Grouping columns, outermost first; \code{NULL} (default) writes
+the overall workbook only.}
 
 \item{write_readable}{Also write per-check CSV/TXT copies of the findings?
 Default \code{FALSE}: the workbook is the delivered record.}
 
 \item{before_snapshot}{Optional earlier snapshot, unioned with \code{snapshot}
-for site lookup (see \code{\link[=resolve_finding_sites]{resolve_finding_sites()}}).}
+for group lookup (see \code{\link[=resolve_finding_sites]{resolve_finding_sites()}}).}
 
 \item{check_info}{Optional validated check-info table; when given, the
 checks index (sheet, CSV and TXT) is written with this set and every
-per-site output, so query text always accompanies the findings.}
+per-group output, so query text always accompanies the findings.}
 }
 \value{
 Invisibly, the directory.
 }
 \description{
 The delivered record is one Excel workbook per set: an overall workbook of
-all findings (one worksheet per non-empty check), plus a per-site workbook
-under \verb{sites/} for each centre when \code{site_col} is given, so a centre
-receives only its own queries alongside the overall set. Per-check CSV/TXT
-copies are written only when \code{write_readable} is \code{TRUE}. Sites are resolved from \code{snapshot}, and from \code{before_snapshot}
+all findings (one worksheet per non-empty check), plus a workbook per group
+under \verb{sites/} when \code{split_by} is given, so a centre receives only its own
+queries alongside the overall set. With more than one grouping column the
+folders nest, outermost column first, and every level gets its own workbook:
+\code{split_by = c("country", "site")} writes a folder per country holding that
+country's workbook, and inside it a folder and workbook per site.
+Per-check CSV/TXT copies are written only when \code{write_readable} is \code{TRUE}.
+Groups are resolved from \code{snapshot}, and from \code{before_snapshot}
 too when given, so a \code{resolved} finding whose record was removed from
-\code{snapshot} is still sited correctly. A \code{cli_warn} is raised per check that
-has findings with no resolvable site.
+\code{snapshot} is still grouped correctly. A \code{cli_warn} is raised per check that
+has findings with no resolvable group.
 }
