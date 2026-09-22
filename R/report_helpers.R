@@ -269,7 +269,7 @@ escape_list_marker <- function(x) {
 render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
                          full_width = TRUE, bold_rows = NULL, bold_headings = TRUE) {
   FULL_WIDTH_CHARS <- 96L
-  LEVEL_WIDTH <- 3L
+  LEVEL_WIDTH <- 1L
   if (!is.data.frame(df)) cli::cli_abort("{.arg df} must be a data frame.")
   n_col <- ncol(df)
   cells <- as.data.frame(lapply(df, function(col) {
@@ -312,10 +312,14 @@ render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
   }
 
   widths <- col_widths(cells, caps)
-  widths[seq_len(levels - 1L)] <- LEVEL_WIDTH
+  level_cols <- seq_len(levels - 1L)
+  widths[level_cols] <- LEVEL_WIDTH
   total <- sum(widths) + 3L * ncol(cells) + 1L
-  if (full_width && total < FULL_WIDTH_CHARS)
-    widths <- ceiling(widths * (FULL_WIDTH_CHARS - 3L * ncol(cells) - 1L) / sum(widths))
+  if (full_width && total < FULL_WIDTH_CHARS) {
+    text_cols <- setdiff(seq_along(widths), level_cols)
+    room <- FULL_WIDTH_CHARS - 3L * ncol(cells) - 1L - LEVEL_WIDTH * length(level_cols)
+    widths[text_cols] <- ceiling(widths[text_cols] * room / sum(widths[text_cols]))
+  }
 
   table <- grid_table(cells, widths, span_rows, levels)
   if (!is.null(caption)) table <- paste0("Table: ", caption, "\n\n", table)
