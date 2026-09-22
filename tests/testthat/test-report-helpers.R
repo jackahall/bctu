@@ -66,7 +66,7 @@ test_that("render_table escapes leading list markers, blanks NA and adds a capti
   expect_match(out, "| \\- (-), 0 ", fixed = TRUE)
   expect_false(grepl("NA", out))
   indented <- render_table(data.frame(Level = indent("*"), n = "4"))
-  expect_match(indented, paste0(strrep(nbsp, 4), "\\*"), fixed = TRUE)
+  expect_match(indented, "| \\* ", fixed = TRUE)
 })
 
 test_that("render_table bolds headings and makes value-less headings banners", {
@@ -76,6 +76,17 @@ test_that("render_table bolds headings and makes value-less headings banners", {
   lines <- strsplit(render_table(tab, full_width = FALSE), "\n")[[1]]
   expect_true(any(grepl("^\\| \\*\\*Sex\\*\\* +\\|$", lines)))
   expect_true(any(grepl("^\\| \\*\\*Total\\*\\* +\\| 3 +\\|$", lines)))
+})
+
+test_that("render_table turns indent levels into merged label columns", {
+  tab <- data.frame(a = c("Cure", indent("Missing"), indent("Deep", 2L)), b = c("3/4", "1", "0"))
+  lines <- strsplit(render_table(tab, full_width = FALSE, bold_headings = FALSE), "\n")[[1]]
+  expect_match(lines[1], "^\\+-+\\+-+\\+-+\\+-+\\+$")
+  expect_true(any(grepl("^\\| a +\\| b +\\|$", lines)))
+  expect_true(any(grepl("^\\| Cure +\\| 3/4 +\\|$", lines)))
+  expect_true(any(grepl("^\\| +\\| Missing +\\| 1 +\\|$", lines)))
+  expect_true(any(grepl("^\\| +\\| +\\| Deep +\\| 0 +\\|$", lines)))
+  expect_equal(indent_depth(c("x", indent("y"), indent("z", 3L))), c(0L, 1L, 3L))
 })
 
 test_that("render_table bolds every cell of bold_rows", {

@@ -1,3 +1,10 @@
+# bctu 0.23.0
+
+## Changes
+
+* `render_table()` turns `indent()` levels into label columns: a label is merged rightwards over the deeper label columns and a deeper label sits in its own column beneath it, in place of non-breaking-space indentation. `grid_table()` gains `levels` for the same layout.
+* `render_table()` gains `bold_headings`; set `FALSE` to bold only `bold_rows`.
+
 # bctu 0.22.5
 
 ## Changes

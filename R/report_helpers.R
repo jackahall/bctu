@@ -29,6 +29,17 @@ indent <- function(x, levels = 1L) {
   paste0(strrep(NBSP, 4L * levels), x)
 }
 
+#' Indent depth of table labels
+#'
+#' The number of [indent()] levels at the start of each label.
+#' @param x A character vector.
+#' @return An integer vector.
+#' @keywords internal
+indent_depth <- function(x) {
+  lead <- attr(regexpr(paste0("^(", NBSP, ")*"), x), "match.length")
+  as.integer(lead %/% 4L)
+}
+
 #' Format counts as "n/N (p%)"
 #'
 #' @param n Numerator counts.
@@ -94,32 +105,61 @@ wrap_grid_cell <- function(text, width) {
 #' within the cell. The header row is the column names. A column whose
 #' wrapped text has a word longer than its width is widened to fit it.
 #'
+#' The first `levels` columns form a label hierarchy. In each row the first
+#' non-empty label cell is merged rightwards over the remaining label
+#' columns, so a deeper label sits in a later column under a merged parent.
+#' The header of the hierarchy is the first column name, merged over all
+#' label columns.
+#'
 #' @param df A data frame of character cells.
 #' @param widths Column widths in characters, one per column (see
 #'   [col_widths()]).
 #' @param span_rows `NULL`, or a logical vector with one value per row: rows
 #'   marked `TRUE` are rendered as one full-width cell holding the text of
 #'   the first column.
+#' @param levels Number of leading label columns (default 1, no hierarchy).
 #' @return A single string holding the grid table.
 #' @examples
 #' df <- data.frame(Group = c("A", "B"), n = c("10", "12"))
 #' cat(grid_table(df, widths = col_widths(df, caps = 20)))
 #' @export
-grid_table <- function(df, widths, span_rows = NULL) {
+grid_table <- function(df, widths, span_rows = NULL, levels = 1L) {
   n_col <- ncol(df)
   if (length(widths) != n_col)
     cli::cli_abort("{.arg widths} must have one value per column ({n_col}).")
   span_rows <- span_rows %||% rep(FALSE, nrow(df))
   if (length(span_rows) != nrow(df))
     cli::cli_abort("{.arg span_rows} must have one value per row ({nrow(df)}).")
+  if (levels < 1L || levels > n_col)
+    cli::cli_abort("{.arg levels} must be between 1 and the number of columns ({n_col}).")
   cells <- rbind(names(df), as.matrix(df))
   span_rows <- c(FALSE, span_rows)
   widths <- as.integer(widths)
 
-  wrapped <- lapply(seq_len(nrow(cells)), function(i)
-    if (span_rows[i]) list(wrap_grid_cell(cells[i, 1], sum(widths) + 3L * (n_col - 1L)))
-    else Map(wrap_grid_cell, cells[i, ], widths))
-  widths <- fit_grid_widths(wrapped, span_rows, widths)
+  segments <- function(i) {
+    if (span_rows[i]) return(list(list(text = cells[i, 1], span = n_col)))
+    first <- if (i == 1L) 1L else {
+      filled <- which(nzchar(cells[i, seq_len(levels)]))
+      if (length(filled)) filled[1] else levels
+    }
+    c(lapply(seq_len(first - 1L), function(j) list(text = "", span = 1L)),
+      list(list(text = cells[i, first], span = levels - first + 1L)),
+      lapply(seq_len(n_col - levels) + levels, function(j) list(text = cells[i, j], span = 1L)))
+  }
+  rows <- lapply(seq_len(nrow(cells)), segments)
+  wrap_row <- function(row, widths) lapply(row, function(seg) {
+    span_widths <- widths[seg$start:(seg$start + seg$span - 1L)]
+    seg$lines <- wrap_grid_cell(seg$text, sum(span_widths) + 3L * (seg$span - 1L))
+    seg
+  })
+  rows <- lapply(rows, function(row) {
+    start <- 1L
+    for (k in seq_along(row)) { row[[k]]$start <- start; start <- start + row[[k]]$span }
+    row
+  })
+  wrapped <- lapply(rows, wrap_row, widths)
+  widths <- fit_grid_widths(wrapped, widths)
+  wrapped <- lapply(rows, wrap_row, widths)
 
   rule <- grid_border_line(widths, "-")
   body <- if (nrow(df)) unlist(lapply(wrapped[-1], function(row) c(grid_row_lines(row, widths), rule)))
@@ -130,35 +170,33 @@ grid_table <- function(df, widths, span_rows = NULL) {
 
 #' Widen grid-table columns so every wrapped line fits
 #'
-#' Each column is widened to its longest wrapped line; the last column is
-#' widened further when a full-width span row needs more room.
-#' @param wrapped A list of rows, each a list of wrapped cell lines (one
-#'   element for a span row).
-#' @param span_rows Logical, one value per row of `wrapped`.
+#' A single-column segment widens its column to its longest wrapped line; a
+#' merged segment that still does not fit widens the last column it covers.
+#' @param wrapped A list of rows, each a list of segments with `lines`,
+#'   `start` and `span`.
 #' @param widths Column widths in characters.
 #' @return The widened column widths.
 #' @keywords internal
-fit_grid_widths <- function(wrapped, span_rows, widths) {
-  n_col <- length(widths)
-  for (j in seq_len(n_col))
-    widths[j] <- max(widths[j], nchar(unlist(lapply(wrapped[!span_rows], `[[`, j))))
-  deficit <- max(0L, nchar(unlist(wrapped[span_rows]))) - (sum(widths) + 3L * (n_col - 1L))
-  if (deficit > 0L) widths[n_col] <- widths[n_col] + deficit
+fit_grid_widths <- function(wrapped, widths) {
+  for (row in wrapped) for (seg in row) {
+    need <- max(0L, nchar(seg$lines))
+    last <- seg$start + seg$span - 1L
+    have <- sum(widths[seg$start:last]) + 3L * (seg$span - 1L)
+    if (need > have) widths[last] <- widths[last] + need - have
+  }
   widths
 }
 
 #' The grid-table content lines for one row
 #'
-#' @param row A list of wrapped cell lines, one element per column, or a
-#'   single element for a row spanning every column.
+#' @param row A list of segments, each with wrapped `lines` and a `span`.
 #' @param widths Column widths in characters.
 #' @return A character vector of content lines.
 #' @keywords internal
 grid_row_lines <- function(row, widths) {
-  span <- if (length(row) == 1L) length(widths) else 1L
-  vapply(seq_len(max(lengths(row))), function(k)
-    grid_content_line(lapply(row, function(l)
-      list(text = if (k <= length(l)) l[k] else "", span = span)), widths),
+  vapply(seq_len(max(lengths(lapply(row, `[[`, "lines")))), function(k)
+    grid_content_line(lapply(row, function(seg)
+      list(text = if (k <= length(seg$lines)) seg$lines[k] else "", span = seg$span)), widths),
     character(1))
 }
 
@@ -203,8 +241,10 @@ escape_list_marker <- function(x) {
 #' Converts a data frame to a pandoc grid table ready for `cat()` in a chunk
 #' with `results = "asis"`. Cells are converted to text with `NA` shown blank,
 #' and a leading `-`, `+` or `*` is escaped so pandoc does not read it as a
-#' list bullet. When any first-column cell is indented with [indent()], the
-#' rows that are not indented are shown in bold, and those with no values in
+#' list bullet. When any first-column cell is indented with [indent()], each
+#' indent level becomes a column of its own: a label is merged rightwards
+#' over the deeper label columns, and a deeper label sits in its own column
+#' beneath. Unindented rows are shown in bold, and those with no values in
 #' the other columns become full-width banner rows.
 #'
 #' @param df A data frame.
@@ -218,6 +258,8 @@ escape_list_marker <- function(x) {
 #'   stretches it to the full page width.
 #' @param bold_rows Rows (a logical or integer index) shown in bold across
 #'   every column, for example the primary outcome row of an outcome table.
+#' @param bold_headings When `TRUE` (default), unindented rows of an indented
+#'   table are shown in bold. Set `FALSE` to bold only `bold_rows`.
 #' @return A single string holding the table (and caption).
 #' @examples
 #' tab <- data.frame(Characteristic = c("Sex", indent(c("Male", "Female"))),
@@ -225,8 +267,9 @@ escape_list_marker <- function(x) {
 #' cat(render_table(tab, caption = "Baseline characteristics"))
 #' @export
 render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
-                         full_width = TRUE, bold_rows = NULL) {
+                         full_width = TRUE, bold_rows = NULL, bold_headings = TRUE) {
   FULL_WIDTH_CHARS <- 96L
+  LEVEL_WIDTH <- 3L
   if (!is.data.frame(df)) cli::cli_abort("{.arg df} must be a data frame.")
   n_col <- ncol(df)
   cells <- as.data.frame(lapply(df, function(col) {
@@ -241,13 +284,15 @@ render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
   }
 
   span_rows <- NULL
-  if (any(startsWith(cells[[1]], NBSP))) {
-    heading <- !startsWith(cells[[1]], NBSP) & nzchar(cells[[1]])
-    cells[[1]][heading] <- vapply(strsplit(cells[[1]][heading], "\n", fixed = TRUE),
-                                  function(f) paste0("**", f, "**", collapse = "\n"),
-                                  character(1))
+  depth <- indent_depth(cells[[1]])
+  if (any(depth > 0L)) {
+    heading <- depth == 0L & nzchar(cells[[1]])
     no_values <- if (n_col > 1L) rowSums(cells[-1] != "") == 0L else rep(TRUE, nrow(cells))
     span_rows <- heading & no_values
+    if (bold_headings)
+      cells[[1]][heading] <- vapply(strsplit(cells[[1]][heading], "\n", fixed = TRUE),
+                                    function(f) paste0("**", f, "**", collapse = "\n"),
+                                    character(1))
   }
   if (!is.null(bold_rows)) {
     bold <- seq_len(nrow(cells)) %in% seq_len(nrow(cells))[bold_rows]
@@ -255,12 +300,24 @@ render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
       ifelse(nzchar(col) & !startsWith(col, "**"), paste0("**", col, "**"), col))
   }
 
-  widths <- col_widths(cells, caps %||% c(44L, rep(20L, n_col - 1L)))
-  total <- sum(widths) + 3L * n_col + 1L
-  if (full_width && total < FULL_WIDTH_CHARS)
-    widths <- ceiling(widths * (FULL_WIDTH_CHARS - 3L * n_col - 1L) / sum(widths))
+  caps <- rep_len(caps %||% c(44L, rep(20L, n_col - 1L)), n_col)
+  levels <- max(depth) + 1L
+  if (levels > 1L) {
+    labels <- sub(paste0("^(", NBSP, ")+"), "", cells[[1]])
+    label_cols <- lapply(seq_len(levels), function(k) ifelse(depth == k - 1L, labels, ""))
+    names(label_cols) <- c(names(cells)[1], rep("", levels - 1L))
+    cells <- cbind(as.data.frame(label_cols, check.names = FALSE, stringsAsFactors = FALSE),
+                   cells[-1], stringsAsFactors = FALSE)
+    caps <- c(rep(LEVEL_WIDTH, levels - 1L), caps[1] - (LEVEL_WIDTH + 3L) * (levels - 1L), caps[-1])
+  }
 
-  table <- grid_table(cells, widths, span_rows)
+  widths <- col_widths(cells, caps)
+  widths[seq_len(levels - 1L)] <- LEVEL_WIDTH
+  total <- sum(widths) + 3L * ncol(cells) + 1L
+  if (full_width && total < FULL_WIDTH_CHARS)
+    widths <- ceiling(widths * (FULL_WIDTH_CHARS - 3L * ncol(cells) - 1L) / sum(widths))
+
+  table <- grid_table(cells, widths, span_rows, levels)
   if (!is.null(caption)) table <- paste0("Table: ", caption, "\n\n", table)
   table
 }

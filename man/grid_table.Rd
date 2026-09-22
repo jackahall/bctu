@@ -4,7 +4,7 @@
 \alias{grid_table}
 \title{Build a pandoc grid table from a data frame}
 \usage{
-grid_table(df, widths, span_rows = NULL)
+grid_table(df, widths, span_rows = NULL, levels = 1L)
 }
 \arguments{
 \item{df}{A data frame of character cells.}
@@ -15,6 +15,8 @@ grid_table(df, widths, span_rows = NULL)
 \item{span_rows}{\code{NULL}, or a logical vector with one value per row: rows
 marked \code{TRUE} are rendered as one full-width cell holding the text of
 the first column.}
+
+\item{levels}{Number of leading label columns (default 1, no hierarchy).}
 }
 \value{
 A single string holding the grid table.
@@ -24,6 +26,13 @@ Renders a data frame of character cells as a pandoc grid table. Cell text
 is wrapped to the column width; a \code{"\\n"} in a cell starts a new paragraph
 within the cell. The header row is the column names. A column whose
 wrapped text has a word longer than its width is widened to fit it.
+}
+\details{
+The first \code{levels} columns form a label hierarchy. In each row the first
+non-empty label cell is merged rightwards over the remaining label
+columns, so a deeper label sits in a later column under a merged parent.
+The header of the hierarchy is the first column name, merged over all
+label columns.
 }
 \examples{
 df <- data.frame(Group = c("A", "B"), n = c("10", "12"))

@@ -7,8 +7,7 @@
 grid_row_lines(row, widths)
 }
 \arguments{
-\item{row}{A list of wrapped cell lines, one element per column, or a
-single element for a row spanning every column.}
+\item{row}{A list of segments, each with wrapped \code{lines} and a \code{span}.}
 
 \item{widths}{Column widths in characters.}
 }

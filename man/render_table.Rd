@@ -10,7 +10,8 @@ render_table(
   caption = NULL,
   col_names = NULL,
   full_width = TRUE,
-  bold_rows = NULL
+  bold_rows = NULL,
+  bold_headings = TRUE
 )
 }
 \arguments{
@@ -30,6 +31,9 @@ stretches it to the full page width.}
 
 \item{bold_rows}{Rows (a logical or integer index) shown in bold across
 every column, for example the primary outcome row of an outcome table.}
+
+\item{bold_headings}{When \code{TRUE} (default), unindented rows of an indented
+table are shown in bold. Set \code{FALSE} to bold only \code{bold_rows}.}
 }
 \value{
 A single string holding the table (and caption).
@@ -38,8 +42,10 @@ A single string holding the table (and caption).
 Converts a data frame to a pandoc grid table ready for \code{cat()} in a chunk
 with \code{results = "asis"}. Cells are converted to text with \code{NA} shown blank,
 and a leading \code{-}, \code{+} or \code{*} is escaped so pandoc does not read it as a
-list bullet. When any first-column cell is indented with \code{\link[=indent]{indent()}}, the
-rows that are not indented are shown in bold, and those with no values in
+list bullet. When any first-column cell is indented with \code{\link[=indent]{indent()}}, each
+indent level becomes a column of its own: a label is merged rightwards
+over the deeper label columns, and a deeper label sits in its own column
+beneath. Unindented rows are shown in bold, and those with no values in
 the other columns become full-width banner rows.
 }
 \examples{

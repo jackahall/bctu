@@ -4,13 +4,11 @@
 \alias{fit_grid_widths}
 \title{Widen grid-table columns so every wrapped line fits}
 \usage{
-fit_grid_widths(wrapped, span_rows, widths)
+fit_grid_widths(wrapped, widths)
 }
 \arguments{
-\item{wrapped}{A list of rows, each a list of wrapped cell lines (one
-element for a span row).}
-
-\item{span_rows}{Logical, one value per row of \code{wrapped}.}
+\item{wrapped}{A list of rows, each a list of segments with \code{lines},
+\code{start} and \code{span}.}
 
 \item{widths}{Column widths in characters.}
 }
@@ -18,7 +16,7 @@ element for a span row).}
 The widened column widths.
 }
 \description{
-Each column is widened to its longest wrapped line; the last column is
-widened further when a full-width span row needs more room.
+A single-column segment widens its column to its longest wrapped line; a
+merged segment that still does not fit widens the last column it covers.
 }
 \keyword{internal}
