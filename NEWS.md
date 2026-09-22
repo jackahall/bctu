@@ -1,3 +1,13 @@
+# bctu 0.22.2
+
+## Fixes
+
+* Rendered trial reports no longer open with "unreadable content" in Word: a post-processor binds the title-page header and footer references to the relationship ids pandoc assigns, so the BCTU logo header reaches the title page.
+* Figures inside `::: landscape` sections are widened to the landscape text width instead of staying at the portrait width.
+* New `trial_report` YAML field `confidential`: its text is placed on its own page, centred, after the title page.
+* Consecutive tables are separated by a blank paragraph.
+* New `repair_report_docx()`, applied automatically by `trial_report()`.
+
 # bctu 0.22.1
 
 ## Fixes

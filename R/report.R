@@ -493,7 +493,9 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #'   Each item is `Label: value`, where the value is a string, a list of
 #'   strings, a `{name, role}` map, or a list of such maps;
 #' * `include-toc` (`true`/`false`) and `toc-depth` (default 3): the Word
-#'   table of contents.
+#'   table of contents;
+#' * `confidential`: text for a confidentiality page, centred on a page of
+#'   its own after the title page. Omit the key for no such page.
 #'
 #' In RStudio, **File > New File > R Markdown > From Template > "BCTU trial
 #' report (Word)"** opens a skeleton with every key filled in.
@@ -525,7 +527,12 @@ trial_report <- function(...) {
     ))
   if (!is.null(dots$pandoc_args))
     dots$pandoc_args <- c(defaults$pandoc_args, dots$pandoc_args)
-  do.call(rmarkdown::word_document, utils::modifyList(defaults, dots))
+  format <- do.call(rmarkdown::word_document, utils::modifyList(defaults, dots))
+  format$post_processor <- function(metadata, input_file, output_file, clean, verbose) {
+    repair_report_docx(output_file)
+    output_file
+  }
+  format
 }
 
 #' Standard figure sizes for BCTU trial reports

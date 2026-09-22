@@ -221,6 +221,26 @@ local function toc_block(title, depth)
     '</w:p>')
 end
 
+local function confidential_page(text)
+  return pandoc.RawBlock("openxml",
+    '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>' ..
+    '<w:r><w:t xml:space="preserve">' .. esc(text) .. '</w:t></w:r></w:p>' ..
+    '<w:p><w:pPr><w:sectPr>' ..
+    '<w:headerReference w:type="default" r:id="rIdHdr1"/>' ..
+    '<w:footerReference w:type="default" r:id="rIdFtr1"/>' ..
+    '<w:pgSz w:w="11906" w:h="16838"/>' ..
+    '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"' ..
+    ' w:header="708" w:footer="708" w:gutter="0"/>' ..
+    '<w:cols w:space="708"/>' ..
+    '<w:vAlign w:val="center"/>' ..
+    '<w:docGrid w:linePitch="360"/>' ..
+    '</w:sectPr></w:pPr></w:p>')
+end
+
+local function empty_para()
+  return pandoc.RawBlock("openxml", '<w:p/>')
+end
+
 -- ---------------------------------------------------------------------
 -- AST walker: landscape sections + numbered captions above content.
 --
@@ -274,6 +294,7 @@ local function process_blocks(blocks, counters)
         caption_inlines("Table", counters.tbl, cap_inlines)))
       b.caption = pandoc.Caption()
       out:insert(b)
+      out:insert(empty_para())
     else
       out:insert(b)
     end
@@ -342,6 +363,9 @@ function Pandoc(doc)
   if meta_tbl then blocks:insert(meta_tbl) end
 
   blocks:insert(title_page_section_break())
+
+  local confidential = as_string(m["confidential"])
+  if confidential then blocks:insert(confidential_page(confidential)) end
 
   if as_bool(m["include-toc"]) then
     local depth = tonumber(as_string(m["toc-depth"])) or 3

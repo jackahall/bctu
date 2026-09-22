@@ -22,6 +22,10 @@ metadata:
         role: "Trial Statistician"
   - Sponsor:     "University of Birmingham"
 
+# Optional confidentiality page, centred on its own page after the title
+# page. Delete the key for no such page.
+confidential: "This report is confidential."
+
 # Optional Word table of contents (inserted after the title page).
 include-toc: true
 toc-depth:   3
