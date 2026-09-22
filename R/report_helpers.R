@@ -253,9 +253,9 @@ escape_list_marker <- function(x) {
 #' @param caption Optional table caption.
 #' @param col_names Optional column headings, one per column. Default the
 #'   column names of `df`.
-#' @param full_width When `TRUE` (default), a table narrower than 96
-#'   characters has its column widths scaled up in proportion, so Word
-#'   stretches it to the full page width.
+#' @param full_width When `TRUE` (default), the text columns are scaled up
+#'   in proportion to 300 characters, so Word stretches the table to the
+#'   full page width and a label column stays as narrow as Word allows.
 #' @param bold_rows Rows (a logical or integer index) shown in bold across
 #'   every column, for example the primary outcome row of an outcome table.
 #' @param bold_headings When `TRUE` (default), unindented rows of an indented
@@ -268,7 +268,7 @@ escape_list_marker <- function(x) {
 #' @export
 render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
                          full_width = TRUE, bold_rows = NULL, bold_headings = TRUE) {
-  FULL_WIDTH_CHARS <- 96L
+  FULL_WIDTH_CHARS <- 300L
   LEVEL_WIDTH <- 1L
   if (!is.data.frame(df)) cli::cli_abort("{.arg df} must be a data frame.")
   n_col <- ncol(df)

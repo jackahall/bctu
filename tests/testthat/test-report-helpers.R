@@ -100,7 +100,7 @@ test_that("render_table scales narrow tables past pandoc's wrap column", {
   df <- data.frame(a = "x", b = "y")
   wide <- strsplit(render_table(df), "\n")[[1]][1]
   narrow <- strsplit(render_table(df, full_width = FALSE), "\n")[[1]][1]
-  expect_gte(nchar(wide), 96L)
+  expect_gte(nchar(wide), 300L)
   expect_equal(nchar(narrow), 23L)
   expect_match(render_table(df, col_names = c("Name A", "Name B")), "| Name A ", fixed = TRUE)
   expect_error(render_table(df, col_names = "A"), "one name per column")

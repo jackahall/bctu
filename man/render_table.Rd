@@ -25,9 +25,9 @@ Default 44 for the first column and 20 for the rest.}
 \item{col_names}{Optional column headings, one per column. Default the
 column names of \code{df}.}
 
-\item{full_width}{When \code{TRUE} (default), a table narrower than 96
-characters has its column widths scaled up in proportion, so Word
-stretches it to the full page width.}
+\item{full_width}{When \code{TRUE} (default), the text columns are scaled up
+in proportion to 300 characters, so Word stretches the table to the
+full page width and a label column stays as narrow as Word allows.}
 
 \item{bold_rows}{Rows (a logical or integer index) shown in bold across
 every column, for example the primary outcome row of an outcome table.}
