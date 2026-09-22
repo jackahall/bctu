@@ -2,6 +2,8 @@
 
 ## Changes
 
+* A figure's image sits in its caption paragraph, which keeps its lines together, so a caption is never left at the foot of a page with the image on the next.
+* A report whose last content is landscape no longer ends with a blank portrait page.
 * `render_table()` turns `indent()` levels into label columns: a label is merged rightwards over the deeper label columns and a deeper label sits in its own column beneath it, in place of non-breaking-space indentation. `grid_table()` gains `levels` for the same layout.
 * `render_table()` gains `bold_headings`; set `FALSE` to bold only `bold_rows`.
 

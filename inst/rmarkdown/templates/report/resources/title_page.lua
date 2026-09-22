@@ -249,8 +249,11 @@ end
 --   renders in landscape (the inversion is because a sectPr in a paragraph
 --   defines the section ENDING at that paragraph, not the one starting).
 -- - Figures and Tables get sequential numbering and the caption is moved
---   above the content as a paragraph styled "ImageCaption" (figures) or
---   "TableCaption" (tables) -- both styles already live in reference.docx.
+--   above the content, styled "ImageCaption" (figures) or "TableCaption"
+--   (tables) -- both styles already live in reference.docx. A figure's
+--   image sits in the caption paragraph after a line break, and the
+--   ImageCaption style keeps its lines together, so Word never leaves the
+--   caption at the foot of one page with the image on the next.
 -- - A `::: footnote` div straight after a table is styled
 --   "FootnoteBlockText" and sits against the table, before the blank
 --   paragraph that separates tables.
@@ -340,10 +343,13 @@ local function process_blocks(blocks, counters)
       counters.fig = counters.fig + 1
       local cap_inlines = b.caption and b.caption.long
         and utils.blocks_to_inlines(b.caption.long) or pandoc.Inlines({})
-      out:insert(captioned_para("ImageCaption",
-        caption_inlines("Figure", counters.fig, cap_inlines)))
-      b.caption = pandoc.Caption()
-      out:insert(b)
+      local inlines = caption_inlines("Figure", counters.fig, cap_inlines)
+      inlines:insert(pandoc.LineBreak())
+      for _, inl in ipairs(utils.blocks_to_inlines(b.content)) do
+        if inl.t == "Image" then inl.caption = pandoc.Inlines({}) end
+        inlines:insert(inl)
+      end
+      out:insert(captioned_para("ImageCaption", inlines))
       i = next_content(blocks, i + 1)
     elseif b.t == "Table" then
       counters.tbl = counters.tbl + 1

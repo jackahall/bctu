@@ -149,3 +149,15 @@ test_that("a footnote div after a table is styled as the table's footnote block"
   document <- paste(readLines(file.path(work, "word", "document.xml"), warn = FALSE), collapse = "")
   expect_match(document, "</w:tbl>\\s*<w:p><w:pPr><w:pStyle w:val=\"FootnoteBlockText\"")
 })
+
+test_that("an empty final section after a landscape break is dropped", {
+  landscape <- "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"16838\" w:h=\"11906\" w:orient=\"landscape\"/></w:sectPr></w:pPr></w:p>"
+  portrait <- "<w:sectPr>\n  <w:pgSz w:w=\"11906\" w:h=\"16838\"/>\n</w:sectPr>\n"
+  empty_tail <- paste0("<w:body><w:p><w:r><w:t>x</w:t></w:r></w:p>", landscape, "<w:p/><w:bookmarkEnd w:id=\"1\"/>", portrait, "</w:body>")
+  out <- drop_trailing_empty_section(empty_tail)
+  expect_equal(lengths(regmatches(out, gregexpr("<w:sectPr>", out)))[[1]], 1L)
+  expect_true(grepl('w:orient="landscape"', out, fixed = TRUE))
+  expect_true(grepl("<w:t>x</w:t>", out, fixed = TRUE))
+  content_tail <- paste0("<w:body>", landscape, "<w:p><w:r><w:t>after</w:t></w:r></w:p>", portrait, "</w:body>")
+  expect_equal(drop_trailing_empty_section(content_tail), content_tail)
+})

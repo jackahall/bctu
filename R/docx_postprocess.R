@@ -25,7 +25,8 @@ PAGE_MARGIN_TWIPS <- 2880L
 #' Applied by [trial_report()] to the file pandoc has just written. It binds
 #' the title-page headers and footers to the relationship ids pandoc chose,
 #' widens full-width images inside landscape sections to the landscape text
-#' width, and keeps each table on one page with its caption.
+#' width, keeps each caption with the start of its table, and drops the
+#' empty final section a report ends in when its last content is landscape.
 #'
 #' @param path Path to the docx.
 #' @return `path`, invisibly.
@@ -53,6 +54,7 @@ repair_report_docx <- function(path) {
   document <- bind_header_footer_ids(document, rels, path)
   document <- widen_landscape_images(document)
   document <- keep_table_rows_together(document)
+  document <- drop_trailing_empty_section(document)
   writeChar(document, doc_path, eos = NULL, useBytes = TRUE)
 
   old <- setwd(work)
@@ -185,4 +187,34 @@ keep_table_rows_together <- function(document) {
                        substring(document, ends[i] + 1L, nchar(document)))
   }
   document
+}
+
+# ---- Trailing empty section ----
+
+#' Drop an empty final section
+#'
+#' A `::: landscape` div closes with a section break paragraph, so a report
+#' whose last content is landscape ends in a portrait section holding nothing
+#' but the body's own section properties, which Word prints as a blank page.
+#' When nothing but empty paragraphs and bookmarks follows the last section
+#' break paragraph, that paragraph is removed and its section properties
+#' become the body's, so the document ends in the landscape section.
+#'
+#' @param document The document.xml text.
+#' @return The document.xml text.
+#' @keywords internal
+drop_trailing_empty_section <- function(document) {
+  breaks <- gregexpr("<w:p>\\s*<w:pPr>\\s*<w:sectPr>.*?</w:sectPr>\\s*</w:pPr>\\s*</w:p>", document, perl = TRUE)[[1]]
+  if (identical(as.integer(breaks), -1L)) return(document)
+  last <- length(breaks)
+  start <- as.integer(breaks)[last]
+  end <- start + attr(breaks, "match.length")[last] - 1L
+  body_sect <- regexpr("(?s)<w:sectPr>(?:(?!<w:sectPr>).)*</w:sectPr>\\s*</w:body>", document, perl = TRUE)
+  if (body_sect == -1L || body_sect < end) return(document)
+  between <- substring(document, end + 1L, body_sect - 1L)
+  if (grepl("<w:t\\b|<w:tbl>|<w:drawing>|<w:br\\b", between, perl = TRUE)) return(document)
+  section <- regmatches(substring(document, start, end), regexpr("(?s)<w:sectPr>.*</w:sectPr>", substring(document, start, end), perl = TRUE))
+  body_end <- body_sect + attr(body_sect, "match.length") - 1L
+  paste0(substring(document, 1L, start - 1L), between, section, "\n  </w:body>",
+         substring(document, body_end + 1L, nchar(document)))
 }
