@@ -122,14 +122,13 @@ test_that("adjacent landscape sections merge and stray page breaks are dropped",
   expect_equal(lengths(regmatches(document, gregexpr('w:br w:type="page"', document)))[[1]], 2L)
 })
 
-test_that("the first two table rows get keep-with-next", {
+test_that("the first table row gets keep-with-next", {
   row <- function(text, ppr = "") paste0("<w:tr><w:tc><w:p>", ppr, "<w:r><w:t>", text, "</w:t></w:r></w:p></w:tc></w:tr>")
   document <- paste0("<w:body><w:tbl>", row("a", "<w:pPr><w:jc w:val=\"left\"/></w:pPr>"), row("b"), row("c"), row("d"), "</w:tbl></w:body>")
   out <- keep_table_rows_together(document)
   rows <- regmatches(out, gregexpr("<w:tr>.*?</w:tr>", out))[[1]]
   expect_true(grepl("<w:pPr><w:keepNext/><w:jc", rows[1], fixed = TRUE))
-  expect_true(grepl("<w:p><w:pPr><w:keepNext/></w:pPr>", rows[2], fixed = TRUE))
-  expect_false(grepl("keepNext", rows[3], fixed = TRUE))
+  expect_false(grepl("keepNext", rows[2], fixed = TRUE))
   expect_false(grepl("keepNext", rows[4], fixed = TRUE))
   expect_equal(keep_table_rows_together("<w:body><w:p/></w:body>"), "<w:body><w:p/></w:body>")
 })

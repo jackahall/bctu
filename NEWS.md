@@ -10,7 +10,7 @@
 ## Changes
 
 * A `::: footnote` fenced div straight after a table is styled as the table's footnote block (`FootnoteBlockText`), with no blank paragraph between them.
-* The first two rows of every table get keep-with-next, so a caption moves to the next page with the start of its table while long tables still flow.
+* The header row of every table gets keep-with-next, so a caption moves to the next page with the start of its table while long tables still flow.
 
 # bctu 0.22.4
 
