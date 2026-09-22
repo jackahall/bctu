@@ -91,5 +91,33 @@ test_that("a rendered trial report has no dangling relationship ids", {
   declared <- regmatches(rels, gregexpr('(?<=Id=")[^"]+', rels, perl = TRUE))[[1]]
   expect_setequal(setdiff(ids, declared), character(0))
   expect_true(grepl('w:vAlign w:val="center"', document, fixed = TRUE))
+  expect_true(grepl('<w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Confidential.', document, fixed = TRUE))
   expect_true(grepl("</w:tbl>", document, fixed = TRUE))
+})
+
+test_that("adjacent landscape sections merge and stray page breaks are dropped", {
+  skip_if_not_installed("rmarkdown")
+  skip_if(!nzchar(Sys.which("pandoc")), "pandoc not available")
+  dir <- withr::local_tempdir()
+  rmd <- file.path(dir, "land.Rmd")
+  table_lines <- c("", "| A | B |", "|---|---|", "| 1 | 2 |", "")
+  writeLines(c(
+    "---", 'trial-short-name: "TEST"', 'report-type: "Test"',
+    "output:", "  bctu::trial_report: default", "---", "", "# One",
+    "", "::: landscape", table_lines, ":::", "",
+    "::: landscape", table_lines, ":::", "",
+    "\\newpage", "",
+    "::: landscape", table_lines, ":::", ""), rmd)
+  out <- rmarkdown::render(rmd, output_file = "land.docx", output_dir = dir, quiet = TRUE)
+  work <- withr::local_tempdir()
+  utils::unzip(out, exdir = work)
+  document <- paste(readLines(file.path(work, "word", "document.xml"), warn = FALSE), collapse = "")
+
+  sections <- regmatches(document, gregexpr("<w:sectPr.*?</w:sectPr>", document))[[1]]
+  landscape <- grepl('w:orient="landscape"', sections, fixed = TRUE)
+  expect_equal(sum(landscape), 1L)
+
+  collapsed <- gsub("<w:sectPr.*?</w:sectPr>", "SECT", document)
+  expect_false(grepl("SECT</w:pPr></w:p>\\s*<w:p><w:pPr>SECT", collapsed))
+  expect_equal(lengths(regmatches(document, gregexpr('w:br w:type="page"', document)))[[1]], 2L)
 })

@@ -224,7 +224,8 @@ end
 local function confidential_page(text)
   return pandoc.RawBlock("openxml",
     '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>' ..
-    '<w:r><w:t xml:space="preserve">' .. esc(text) .. '</w:t></w:r></w:p>' ..
+    '<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">' .. esc(text) ..
+    '</w:t></w:r></w:p>' ..
     '<w:p><w:pPr><w:sectPr>' ..
     '<w:headerReference w:type="default" r:id="rIdHdr1"/>' ..
     '<w:footerReference w:type="default" r:id="rIdFtr1"/>' ..
@@ -268,24 +269,75 @@ local function captioned_para(style, inlines)
   )
 end
 
+local function is_landscape_div(b)
+  return b ~= nil and b.t == "Div" and b.classes:includes("landscape")
+end
+
+local function is_page_break(b)
+  if b == nil or b.t ~= "RawBlock" then return false end
+  local fmt = tostring(b.format)
+  if fmt == "openxml" then
+    return b.text:find('w:br w:type="page"', 1, true) ~= nil
+  end
+  if fmt == "tex" or fmt == "latex" then
+    return b.text:match("^%s*\\newpage%s*$") ~= nil
+      or b.text:match("^%s*\\pagebreak%s*$") ~= nil
+  end
+  return false
+end
+
+local function is_blank(b)
+  if b == nil then return false end
+  if b.t == "Null" then return true end
+  return (b.t == "Para" or b.t == "Plain") and #b.content == 0
+end
+
+local function next_content(blocks, i)
+  while is_blank(blocks[i]) do i = i + 1 end
+  return i
+end
+
+-- Index of the next content block, stepping over one page break.
+local function skip_page_break(blocks, i)
+  local j = next_content(blocks, i)
+  if is_page_break(blocks[j]) then return next_content(blocks, j + 1) end
+  return j
+end
+
 local function process_blocks(blocks, counters)
   local out = pandoc.Blocks({})
-  for _, b in ipairs(blocks) do
-    if b.t == "Div" and b.classes:includes("landscape") then
+  local i = next_content(blocks, 1)
+  while blocks[i] ~= nil do
+    local b = blocks[i]
+    if is_page_break(b) and is_landscape_div(blocks[skip_page_break(blocks, i)]) then
+      i = next_content(blocks, i + 1)
+    elseif is_landscape_div(b) then
       out:insert(body_section_break("portrait"))
-      for _, inner in ipairs(process_blocks(b.content, counters)) do
-        out:insert(inner)
+      local j = i
+      local following = skip_page_break(blocks, j + 1)
+      while true do
+        for _, inner in ipairs(process_blocks(blocks[j].content, counters)) do
+          out:insert(inner)
+        end
+        if is_landscape_div(blocks[following]) then
+          out:insert(page_break())
+          j = following
+          following = skip_page_break(blocks, j + 1)
+        else
+          break
+        end
       end
       out:insert(body_section_break("landscape"))
+      i = following
     elseif b.t == "Figure" then
       counters.fig = counters.fig + 1
       local cap_inlines = b.caption and b.caption.long
         and utils.blocks_to_inlines(b.caption.long) or pandoc.Inlines({})
       out:insert(captioned_para("ImageCaption",
         caption_inlines("Figure", counters.fig, cap_inlines)))
-      -- Strip the caption from the figure so it doesn't render again.
       b.caption = pandoc.Caption()
       out:insert(b)
+      i = next_content(blocks, i + 1)
     elseif b.t == "Table" then
       counters.tbl = counters.tbl + 1
       local cap_inlines = b.caption and b.caption.long
@@ -295,8 +347,10 @@ local function process_blocks(blocks, counters)
       b.caption = pandoc.Caption()
       out:insert(b)
       out:insert(empty_para())
+      i = next_content(blocks, i + 1)
     else
       out:insert(b)
+      i = next_content(blocks, i + 1)
     end
   end
   return out

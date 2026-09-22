@@ -1,3 +1,11 @@
+# bctu 0.22.3
+
+## Fixes
+
+* The confidentiality page text is bold.
+* Consecutive `::: landscape` sections merge into one landscape section, so the empty portrait section between them no longer prints a blank page.
+* A page break next to a landscape section boundary is dropped, so a `\newpage` between chapters no longer adds a blank page.
+
 # bctu 0.22.2
 
 ## Fixes
