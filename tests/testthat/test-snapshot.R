@@ -128,3 +128,16 @@ test_that("delete_snapshot requires a reason", {
                          store = store, verbose = 0L)
   expect_error(delete_snapshot(attr(snap, "id"), reason = "", store = store, verbose = 0L))
 })
+
+test_that("loading a snapshot with labelled columns makes haven's methods available", {
+  skip_if_not_installed("haven")
+  store <- withr::local_tempdir()
+  d <- data.frame(record_id = c("E001", "E002"), stringsAsFactors = FALSE)
+  d$coded <- haven::labelled(c(1, 0), labels = c(No = 0, Yes = 1))
+  snap <- as_snapshot(list(records = d), source = list(type = "example"), name = "demo")
+  save_snapshot(snap, store = store, verbose = 0L)
+
+  s <- load_snapshot("latest", store = store, verbose = 0L)
+  expect_true(isNamespaceLoaded("haven"))
+  expect_identical(s$records$coded == 0, c(FALSE, TRUE))
+})

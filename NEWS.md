@@ -1,3 +1,9 @@
+# bctu 0.22.1
+
+## Fixes
+
+* `load_snapshot()` loads the haven namespace when a table carries labelled columns, so `==`, `ifelse()` and binding on those columns work whether or not the caller attached haven first.
+
 # bctu 0.22.0
 
 ## Changes

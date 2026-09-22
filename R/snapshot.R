@@ -416,6 +416,22 @@ resolve_snapshot_which <- function(which, store) {
 }
 
 # --- load -------------------------------------------------------------------
+#' Load the haven namespace when a table carries labelled columns
+#'
+#' A `haven_labelled` column read back from rds carries its class but not the
+#' package: until haven's namespace is loaded, `==`, `ifelse()` and binding on
+#' that column fail with a vctrs type error. Loading it here means a snapshot
+#' works the same whether or not the caller attached haven first.
+#' @param tbl A table read from a snapshot.
+#' @return `tbl`, unchanged.
+#' @keywords internal
+load_haven_for <- function(tbl) {
+  if (is.data.frame(tbl) && any(vapply(tbl, inherits, logical(1), "haven_labelled")))
+    if (!requireNamespace("haven", quietly = TRUE))
+      cli::cli_warn("Table carries labelled columns but the {.pkg haven} package is not installed.")
+  tbl
+}
+
 #' Load a snapshot from the store
 #' @param which `"latest"`, `"penultimate"`, an id, or an integer (1 = newest).
 #' @param store Snapshot store directory.
@@ -434,7 +450,7 @@ load_snapshot <- function(which = "latest", store = snapshot_store(verbose = 0L)
   man <- yaml::read_yaml(file.path(dir, manifest_filename))
   read_one <- function(nm) {
     f <- man$tables[[nm]]$files
-    if (!is.null(f$rds)) return(readRDS(file.path(dir, f$rds$path)))
+    if (!is.null(f$rds)) return(load_haven_for(readRDS(file.path(dir, f$rds$path))))
     if (!is.null(f$csv)) {
       cli::cli_warn("Table {.val {nm}}: no rds payload, reading the csv copy (types and labels may differ).")
       return(utils::read.csv(file.path(dir, f$csv$path), stringsAsFactors = FALSE))
