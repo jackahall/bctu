@@ -224,14 +224,15 @@ banner_row <- function(template, text) {
 #'
 #' Inserts a backslash before a `-`, `+` or `*` at the start of each
 #' `"\n"`-separated field (after any non-breaking-space indentation), so
-#' pandoc keeps it as text instead of reading a list item.
+#' pandoc keeps it as text instead of reading a list item. A field opening
+#' with bold text (`**label** ...`) is left as markup.
 #' @param x A character vector.
 #' @return `x` with leading markers escaped.
 #' @keywords internal
 escape_list_marker <- function(x) {
   vapply(x, function(s) {
     fields <- strsplit(s, "\n", fixed = TRUE)[[1]]
-    fields <- sub("^((?:\u00a0)*)([-+*])", "\\1\\\\\\2", fields, perl = TRUE)
+    fields <- sub("^((?:\u00a0)*)([-+*])(?!\\*[^*]+\\*\\*)", "\\1\\\\\\2", fields, perl = TRUE)
     paste(fields, collapse = "\n")
   }, character(1), USE.NAMES = FALSE)
 }

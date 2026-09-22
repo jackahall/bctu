@@ -65,6 +65,7 @@ test_that("render_table escapes leading list markers, blanks NA and adds a capti
   expect_match(out, "| \\++ ", fixed = TRUE)
   expect_match(out, "| \\- (-), 0 ", fixed = TRUE)
   expect_false(grepl("NA", out))
+  expect_match(render_table(data.frame(a = "**Label:** text")), "| **Label:** text", fixed = TRUE)
   indented <- render_table(data.frame(Level = indent("*"), n = "4"))
   expect_match(indented, "| \\* ", fixed = TRUE)
 })
