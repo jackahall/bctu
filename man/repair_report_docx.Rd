@@ -15,8 +15,8 @@ repair_report_docx(path)
 \description{
 Applied by \code{\link[=trial_report]{trial_report()}} to the file pandoc has just written. It binds
 the title-page headers and footers to the relationship ids pandoc chose,
-and widens full-width images inside landscape sections to the landscape
-text width.
+widens full-width images inside landscape sections to the landscape text
+width, and keeps each table on one page with its caption.
 }
 \examples{
 \dontrun{

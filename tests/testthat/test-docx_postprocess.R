@@ -121,3 +121,31 @@ test_that("adjacent landscape sections merge and stray page breaks are dropped",
   expect_false(grepl("SECT</w:pPr></w:p>\\s*<w:p><w:pPr>SECT", collapsed))
   expect_equal(lengths(regmatches(document, gregexpr('w:br w:type="page"', document)))[[1]], 2L)
 })
+
+test_that("table rows but the last get keep-with-next", {
+  row <- function(text, ppr = "") paste0("<w:tr><w:tc><w:p>", ppr, "<w:r><w:t>", text, "</w:t></w:r></w:p></w:tc></w:tr>")
+  document <- paste0("<w:body><w:tbl>", row("a", "<w:pPr><w:jc w:val=\"left\"/></w:pPr>"), row("b"), row("c"), "</w:tbl></w:body>")
+  out <- keep_table_rows_together(document)
+  rows <- regmatches(out, gregexpr("<w:tr>.*?</w:tr>", out))[[1]]
+  expect_true(grepl("<w:pPr><w:keepNext/><w:jc", rows[1], fixed = TRUE))
+  expect_true(grepl("<w:p><w:pPr><w:keepNext/></w:pPr>", rows[2], fixed = TRUE))
+  expect_false(grepl("keepNext", rows[3], fixed = TRUE))
+  expect_equal(keep_table_rows_together("<w:body><w:p/></w:body>"), "<w:body><w:p/></w:body>")
+})
+
+test_that("a footnote div after a table is styled as the table's footnote block", {
+  skip_if_not_installed("rmarkdown")
+  skip_if(!nzchar(Sys.which("pandoc")), "pandoc not available")
+  dir <- withr::local_tempdir()
+  rmd <- file.path(dir, "foot.Rmd")
+  writeLines(c(
+    "---", 'trial-short-name: "TEST"', 'report-type: "Test"',
+    "output:", "  bctu::trial_report: default", "---", "", "# One", "",
+    "| A | B |", "|---|---|", "| 1 | 2 |", "", "::: footnote", "^a^ Note.", ":::", "",
+    "After.", ""), rmd)
+  out <- rmarkdown::render(rmd, output_file = "foot.docx", output_dir = dir, quiet = TRUE)
+  work <- withr::local_tempdir()
+  utils::unzip(out, exdir = work)
+  document <- paste(readLines(file.path(work, "word", "document.xml"), warn = FALSE), collapse = "")
+  expect_match(document, "</w:tbl>\\s*<w:p><w:pPr><w:pStyle w:val=\"FootnoteBlockText\"")
+})

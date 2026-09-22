@@ -474,8 +474,9 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #' uses the bundled BCTU `reference.docx` (styles, running header and footer,
 #' logo) and the bundled `title_page.lua` pandoc filter, which builds the
 #' title page from YAML metadata, inserts an optional Word table of contents,
-#' turns `::: landscape` fenced divs into landscape sections, and numbers
-#' figure and table captions above their content.
+#' turns `::: landscape` fenced divs into landscape sections, numbers
+#' figure and table captions above their content, and styles a `::: footnote`
+#' fenced div placed straight after a table as that table's footnote block.
 #'
 #' Declare the format in the YAML header of an `.Rmd` and render it with
 #' [rmarkdown::render()]:

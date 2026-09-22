@@ -19,8 +19,9 @@ An \code{\link[rmarkdown:word_document]{rmarkdown::word_document()}} output form
 uses the bundled BCTU \code{reference.docx} (styles, running header and footer,
 logo) and the bundled \code{title_page.lua} pandoc filter, which builds the
 title page from YAML metadata, inserts an optional Word table of contents,
-turns \verb{::: landscape} fenced divs into landscape sections, and numbers
-figure and table captions above their content.
+turns \verb{::: landscape} fenced divs into landscape sections, numbers
+figure and table captions above their content, and styles a \verb{::: footnote}
+fenced div placed straight after a table as that table's footnote block.
 }
 \details{
 Declare the format in the YAML header of an \code{.Rmd} and render it with

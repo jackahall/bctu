@@ -251,6 +251,9 @@ end
 -- - Figures and Tables get sequential numbering and the caption is moved
 --   above the content as a paragraph styled "ImageCaption" (figures) or
 --   "TableCaption" (tables) -- both styles already live in reference.docx.
+-- - A `::: footnote` div straight after a table is styled
+--   "FootnoteBlockText" and sits against the table, before the blank
+--   paragraph that separates tables.
 -- ---------------------------------------------------------------------
 
 local function caption_inlines(prefix, n, original)
@@ -271,6 +274,10 @@ end
 
 local function is_landscape_div(b)
   return b ~= nil and b.t == "Div" and b.classes:includes("landscape")
+end
+
+local function is_footnote_div(b)
+  return b ~= nil and b.t == "Div" and b.classes:includes("footnote")
 end
 
 local function is_page_break(b)
@@ -346,8 +353,13 @@ local function process_blocks(blocks, counters)
         caption_inlines("Table", counters.tbl, cap_inlines)))
       b.caption = pandoc.Caption()
       out:insert(b)
-      out:insert(empty_para())
       i = next_content(blocks, i + 1)
+      if is_footnote_div(blocks[i]) then
+        out:insert(pandoc.Div(blocks[i].content,
+          pandoc.Attr("", {}, { ["custom-style"] = "FootnoteBlockText" })))
+        i = next_content(blocks, i + 1)
+      end
+      out:insert(empty_para())
     else
       out:insert(b)
       i = next_content(blocks, i + 1)

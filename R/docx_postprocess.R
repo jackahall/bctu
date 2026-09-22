@@ -24,8 +24,8 @@ PAGE_MARGIN_TWIPS <- 2880L
 #'
 #' Applied by [trial_report()] to the file pandoc has just written. It binds
 #' the title-page headers and footers to the relationship ids pandoc chose,
-#' and widens full-width images inside landscape sections to the landscape
-#' text width.
+#' widens full-width images inside landscape sections to the landscape text
+#' width, and keeps each table on one page with its caption.
 #'
 #' @param path Path to the docx.
 #' @return `path`, invisibly.
@@ -52,6 +52,7 @@ repair_report_docx <- function(path) {
   rels <- readChar(rels_path, file.size(rels_path), useBytes = TRUE)
   document <- bind_header_footer_ids(document, rels, path)
   document <- widen_landscape_images(document)
+  document <- keep_table_rows_together(document)
   writeChar(document, doc_path, eos = NULL, useBytes = TRUE)
 
   old <- setwd(work)
@@ -142,6 +143,46 @@ widen_landscape_images <- function(document) {
     block <- gsub(extent, new_extent, block, fixed = TRUE)
     document <- paste0(substring(document, 1L, starts[i] - 1L), block,
                        substring(document, ends[i] + 1L))
+  }
+  document
+}
+
+# ---- Tables kept with their captions ----
+
+#' Keep each table on one page with its caption
+#'
+#' The caption style carries keep-with-next, but Word only holds a caption to
+#' a table when the table's own rows are kept together. Every paragraph in
+#' every row but the last gets keep-with-next, so a table that fits on a page
+#' moves to the next page as one block with its caption. A table longer than
+#' a page still breaks.
+#'
+#' @param document The document.xml text.
+#' @return The document.xml text with the paragraph properties added.
+#' @keywords internal
+keep_table_rows_together <- function(document) {
+  tables <- gregexpr("<w:tbl>.*?</w:tbl>", document)[[1]]
+  if (identical(as.integer(tables), -1L)) return(document)
+  starts <- as.integer(tables)
+  ends <- starts + attr(tables, "match.length") - 1L
+  keep_paragraphs <- function(row) {
+    row <- gsub("<w:p>(?!<w:pPr>)", "<w:p><w:pPr><w:keepNext/></w:pPr>", row, perl = TRUE)
+    row <- gsub("(<w:p [^>]*>)(?!<w:pPr>)", "\\1<w:pPr><w:keepNext/></w:pPr>", row, perl = TRUE)
+    gsub("(<w:p(?: [^>]*)?><w:pPr>)(?!<w:keepNext)", "\\1<w:keepNext/>", row, perl = TRUE)
+  }
+  for (i in rev(seq_along(starts))) {
+    table <- substring(document, starts[i], ends[i])
+    rows <- gregexpr("<w:tr(?: [^>]*)?>.*?</w:tr>", table, perl = TRUE)[[1]]
+    if (identical(as.integer(rows), -1L) || length(rows) < 2L) next
+    row_starts <- as.integer(rows)
+    row_ends <- row_starts + attr(rows, "match.length") - 1L
+    for (j in rev(seq_len(length(rows) - 1L))) {
+      kept <- keep_paragraphs(substring(table, row_starts[j], row_ends[j]))
+      table <- paste0(substring(table, 1L, row_starts[j] - 1L), kept,
+                      substring(table, row_ends[j] + 1L, nchar(table)))
+    }
+    document <- paste0(substring(document, 1L, starts[i] - 1L), table,
+                       substring(document, ends[i] + 1L, nchar(document)))
   }
   document
 }

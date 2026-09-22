@@ -1,3 +1,10 @@
+# bctu 0.22.5
+
+## Changes
+
+* A `::: footnote` fenced div straight after a table is styled as the table's footnote block (`FootnoteBlockText`), with no blank paragraph between them.
+* Every table row but the last gets keep-with-next, so a table that fits on a page stays on one page with its caption.
+
 # bctu 0.22.4
 
 ## Changes
