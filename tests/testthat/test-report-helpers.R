@@ -78,6 +78,13 @@ test_that("render_table bolds headings and makes value-less headings banners", {
   expect_true(any(grepl("^\\| \\*\\*Total\\*\\* +\\| 3 +\\|$", lines)))
 })
 
+test_that("render_table bolds every cell of bold_rows", {
+  tab <- data.frame(a = c("Cure", indent("Missing")), b = c("3/4 (75%)", "1"))
+  lines <- strsplit(render_table(tab, full_width = FALSE, bold_rows = 1L), "\n")[[1]]
+  expect_true(any(grepl("^\\| \\*\\*Cure\\*\\* +\\| \\*\\*3/4 \\(75%\\)\\*\\* +\\|$", lines)))
+  expect_true(any(grepl("Missing +\\| 1 +\\|$", lines)))
+})
+
 test_that("render_table scales narrow tables past pandoc's wrap column", {
   df <- data.frame(a = "x", b = "y")
   wide <- strsplit(render_table(df), "\n")[[1]][1]

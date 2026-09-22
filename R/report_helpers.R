@@ -216,6 +216,8 @@ escape_list_marker <- function(x) {
 #' @param full_width When `TRUE` (default), a table narrower than 96
 #'   characters has its column widths scaled up in proportion, so Word
 #'   stretches it to the full page width.
+#' @param bold_rows Rows (a logical or integer index) shown in bold across
+#'   every column, for example the primary outcome row of an outcome table.
 #' @return A single string holding the table (and caption).
 #' @examples
 #' tab <- data.frame(Characteristic = c("Sex", indent(c("Male", "Female"))),
@@ -223,7 +225,7 @@ escape_list_marker <- function(x) {
 #' cat(render_table(tab, caption = "Baseline characteristics"))
 #' @export
 render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
-                         full_width = TRUE) {
+                         full_width = TRUE, bold_rows = NULL) {
   FULL_WIDTH_CHARS <- 96L
   if (!is.data.frame(df)) cli::cli_abort("{.arg df} must be a data frame.")
   n_col <- ncol(df)
@@ -246,6 +248,11 @@ render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
                                   character(1))
     no_values <- if (n_col > 1L) rowSums(cells[-1] != "") == 0L else rep(TRUE, nrow(cells))
     span_rows <- heading & no_values
+  }
+  if (!is.null(bold_rows)) {
+    bold <- seq_len(nrow(cells)) %in% seq_len(nrow(cells))[bold_rows]
+    cells[bold, ] <- lapply(cells[bold, , drop = FALSE], function(col)
+      ifelse(nzchar(col) & !startsWith(col, "**"), paste0("**", col, "**"), col))
   }
 
   widths <- col_widths(cells, caps %||% c(44L, rep(20L, n_col - 1L)))

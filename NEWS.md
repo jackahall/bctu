@@ -1,3 +1,9 @@
+# bctu 0.22.4
+
+## Changes
+
+* `render_table()` gains `bold_rows`: the rows named are shown in bold across every column, for example the primary outcome row of an outcome table.
+
 # bctu 0.22.3
 
 ## Fixes

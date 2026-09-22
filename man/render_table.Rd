@@ -9,7 +9,8 @@ render_table(
   caps = NULL,
   caption = NULL,
   col_names = NULL,
-  full_width = TRUE
+  full_width = TRUE,
+  bold_rows = NULL
 )
 }
 \arguments{
@@ -26,6 +27,9 @@ column names of \code{df}.}
 \item{full_width}{When \code{TRUE} (default), a table narrower than 96
 characters has its column widths scaled up in proportion, so Word
 stretches it to the full page width.}
+
+\item{bold_rows}{Rows (a logical or integer index) shown in bold across
+every column, for example the primary outcome row of an outcome table.}
 }
 \value{
 A single string holding the table (and caption).
