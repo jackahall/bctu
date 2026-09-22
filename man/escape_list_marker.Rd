@@ -15,6 +15,7 @@ escape_list_marker(x)
 \description{
 Inserts a backslash before a \code{-}, \code{+} or \code{*} at the start of each
 \code{"\\n"}-separated field (after any non-breaking-space indentation), so
-pandoc keeps it as text instead of reading a list item.
+pandoc keeps it as text instead of reading a list item. A field opening
+with bold text (\verb{**label** ...}) is left as markup.
 }
 \keyword{internal}

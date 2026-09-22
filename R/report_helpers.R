@@ -306,9 +306,11 @@ render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
   if (levels > 1L) {
     labels <- sub(paste0("^(", NBSP, ")+"), "", cells[[1]])
     label_cols <- lapply(seq_len(levels), function(k) ifelse(depth == k - 1L, labels, ""))
-    names(label_cols) <- c(names(cells)[1], rep("", levels - 1L))
-    cells <- cbind(as.data.frame(label_cols, check.names = FALSE, stringsAsFactors = FALSE),
-                   cells[-1], stringsAsFactors = FALSE)
+    label_cols <- as.data.frame(label_cols, col.names = paste0("level", seq_len(levels)),
+                                stringsAsFactors = FALSE)
+    header <- c(names(cells)[1], rep("", levels - 1L), names(cells)[-1])
+    cells <- cbind(label_cols, cells[-1], stringsAsFactors = FALSE)
+    names(cells) <- header
     caps <- c(rep(LEVEL_WIDTH, levels - 1L), caps[1] - (LEVEL_WIDTH + 3L) * (levels - 1L), caps[-1])
   }
 

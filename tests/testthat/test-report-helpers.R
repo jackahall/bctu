@@ -88,6 +88,8 @@ test_that("render_table turns indent levels into merged label columns", {
   expect_true(any(grepl("^\\| +\\| Missing +\\| 1 +\\|$", lines)))
   expect_true(any(grepl("^\\| +\\| +\\| Deep +\\| 0 +\\|$", lines)))
   expect_equal(indent_depth(c("x", indent("y"), indent("z", 3L))), c(0L, 1L, 3L))
+  blank <- render_table(data.frame(a = c("Cure", indent("Missing")), n = c("3", "1")), col_names = c("", "n"))
+  expect_false(grepl("Var|c\\(", blank))
 })
 
 test_that("render_table bolds every cell of bold_rows", {

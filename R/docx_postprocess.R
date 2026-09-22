@@ -149,13 +149,13 @@ widen_landscape_images <- function(document) {
 
 # ---- Tables kept with their captions ----
 
-#' Keep each table on one page with its caption
+#' Keep the start of each table with its caption
 #'
 #' The caption style carries keep-with-next, but Word only holds a caption to
-#' a table when the table's own rows are kept together. Every paragraph in
-#' every row but the last gets keep-with-next, so a table that fits on a page
-#' moves to the next page as one block with its caption. A table longer than
-#' a page still breaks.
+#' a table when the table's first rows are kept together too. Every paragraph
+#' in the first two rows (the header and the first body row) gets
+#' keep-with-next, so the caption moves to the next page with the start of
+#' the table, while a long table still flows across pages.
 #'
 #' @param document The document.xml text.
 #' @return The document.xml text with the paragraph properties added.
@@ -176,7 +176,7 @@ keep_table_rows_together <- function(document) {
     if (identical(as.integer(rows), -1L) || length(rows) < 2L) next
     row_starts <- as.integer(rows)
     row_ends <- row_starts + attr(rows, "match.length") - 1L
-    for (j in rev(seq_len(length(rows) - 1L))) {
+    for (j in rev(seq_len(min(2L, length(rows) - 1L)))) {
       kept <- keep_paragraphs(substring(table, row_starts[j], row_ends[j]))
       table <- paste0(substring(table, 1L, row_starts[j] - 1L), kept,
                       substring(table, row_ends[j] + 1L, nchar(table)))

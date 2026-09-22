@@ -2,7 +2,7 @@
 % Please edit documentation in R/docx_postprocess.R
 \name{keep_table_rows_together}
 \alias{keep_table_rows_together}
-\title{Keep each table on one page with its caption}
+\title{Keep the start of each table with its caption}
 \usage{
 keep_table_rows_together(document)
 }
@@ -14,9 +14,9 @@ The document.xml text with the paragraph properties added.
 }
 \description{
 The caption style carries keep-with-next, but Word only holds a caption to
-a table when the table's own rows are kept together. Every paragraph in
-every row but the last gets keep-with-next, so a table that fits on a page
-moves to the next page as one block with its caption. A table longer than
-a page still breaks.
+a table when the table's first rows are kept together too. Every paragraph
+in the first two rows (the header and the first body row) gets
+keep-with-next, so the caption moves to the next page with the start of
+the table, while a long table still flows across pages.
 }
 \keyword{internal}
