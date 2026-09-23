@@ -486,18 +486,20 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #'   bctu::trial_report: default
 #' }
 #'
-#' `theme-colours` in the YAML header recolours the document's theme, and
-#' with it every table border, header shading, caption and link that the
-#' template ties to a theme colour; each entry is a hex colour under one of
-#' `dark1`, `light1`, `dark2`, `light2`, `accent1` to `accent6`,
-#' `hyperlink`, `followed_hyperlink` (see [repair_report_docx()]). The
-#' defaults are the UoB colours, and the same colours can be changed later
-#' in Word under Design, Colors.
+#' `theme` in the YAML header restyles the document. Its keys are the
+#' elements of [report_theme()], which inherit from one another (set
+#' `colour.accent` and every rule, border and header fill follows; set one
+#' of them to override just that), and every element not given keeps the
+#' template default: UoB gold accents, Arial at 11 pt, the title acronym in
+#' Times New Roman. The same colours and fonts can be changed afterwards in
+#' Word under Design.
 #'
 #' \preformatted{
-#' theme-colours:
-#'   accent1: "C59A00"
-#'   hyperlink: "0057BF"
+#' theme:
+#'   colour.accent: "C59A00"
+#'   table.header.fill: "F3EBCC"
+#'   font.body: "Arial"
+#'   font.size: 11
 #' }
 #'
 #' The title-page filter reads these YAML keys (pandoc's own `title`,
@@ -515,24 +517,33 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #' In RStudio, **File > New File > R Markdown > From Template > "BCTU trial
 #' report (Word)"** opens a skeleton with every key filled in.
 #'
+#' @section Templates:
+#' A template is a named entry of the package's template registry: a folder
+#' of resources (the reference document and pandoc filter) and the elements
+#' of [report_theme()] mapped onto it. Only `"bctu"` ships today. Adding a
+#' Word template is adding a resources folder and a registry entry; a PDF
+#' or HTML template would be a new output format built the same way, taking
+#' the same [report_theme()] so one theme styles every format.
+#'
+#' @param template The report template, by name (`"bctu"`).
 #' @param ... Arguments passed to [rmarkdown::word_document()]. Any
 #'   `pandoc_args` are appended after the bundled Lua filter. A
 #'   `reference_docx` replaces the bundled BCTU template, with a warning.
 #' @return An rmarkdown output format object.
 #' @seealso [fig_portrait()] for the figure-size chunk templates.
 #' @export
-trial_report <- function(...) {
+trial_report <- function(template = "bctu", ...) {
   if (!requireNamespace("rmarkdown", quietly = TRUE))
     cli::cli_abort(c("Package {.pkg rmarkdown} is needed for {.fn trial_report}.",
                      "i" = "Install it with {.code install.packages(\"rmarkdown\")}."))
-  resource <- function(name) system.file("rmarkdown", "templates", "report",
-                                         "resources", name, package = "bctu")
+  spec <- report_template(template)
+  resource <- function(name) file.path(spec$resources, name)
   defaults <- list(
-    reference_docx  = resource("reference.docx"),
+    reference_docx  = resource(spec$reference),
     toc             = FALSE,
     number_sections = TRUE,
     highlight       = "tango",
-    pandoc_args     = c("--lua-filter", resource("title_page.lua"))
+    pandoc_args     = c("--lua-filter", resource(spec$filter))
   )
   dots <- list(...)
   if (!is.null(dots$reference_docx))
@@ -544,7 +555,7 @@ trial_report <- function(...) {
     dots$pandoc_args <- c(defaults$pandoc_args, dots$pandoc_args)
   format <- do.call(rmarkdown::word_document, utils::modifyList(defaults, dots))
   format$post_processor <- function(metadata, input_file, output_file, clean, verbose) {
-    repair_report_docx(output_file, theme_colours = metadata[["theme-colours"]])
+    repair_report_docx(output_file, theme = metadata[["theme"]], template = spec)
     output_file
   }
   format

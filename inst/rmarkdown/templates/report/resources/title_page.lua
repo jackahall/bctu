@@ -136,7 +136,7 @@ local function rule_row_xml(side)
          '<w:tc><w:tcPr><w:tcW w:w="9360" w:type="dxa"/>' ..
          '<w:gridSpan w:val="2"/></w:tcPr>' ..
          '<w:p><w:pPr><w:pBdr><w:' .. side ..
-         ' w:val="single" w:sz="12" w:space="0" w:color="C59A00"/></w:pBdr>' ..
+         ' w:val="single" w:sz="12" w:space="0" w:color="C59A00" w:themeColor="accent2"/></w:pBdr>' ..
          '<w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/>' ..
          '<w:rPr><w:sz w:val="2"/></w:rPr></w:pPr></w:p></w:tc></w:tr>'
 end

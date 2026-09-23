@@ -26,25 +26,22 @@ PAGE_MARGIN_TWIPS <- 2880L
 #' the title-page headers and footers to the relationship ids pandoc chose,
 #' widens full-width images inside landscape sections to the landscape text
 #' width, keeps each caption with the start of its table, drops the empty
-#' final section a report ends in when its last content is landscape, and
-#' sets any theme colours given.
+#' final section a report ends in when its last content is landscape,
+#' applies any theme given, and fills the table of contents with the
+#' headings (see [populate_toc()]) so Word opens it without a prompt.
 #'
 #' @param path Path to the docx.
-#' @param theme_colours A named list or character vector of hex colours
-#'   (`"C59A00"` or `"#C59A00"`) replacing entries of the document's theme
-#'   colour scheme: `dark1`, `light1`, `dark2`, `light2`, `accent1` to
-#'   `accent6`, `hyperlink`, `followed_hyperlink`. The bundled template ties
-#'   table borders and header shading to `accent1` (UoB gold), captions and
-#'   secondary text to `dark2` (dark grey) and links to `hyperlink` (UoB
-#'   blue), so a report can be recoloured here, or afterwards in Word's
-#'   theme colours, without touching any style.
+#' @param theme A [report_theme()], a named list of its elements (the YAML
+#'   `theme` key), or `NULL` for the template defaults.
+#' @param template The template the docx was rendered from, from
+#'   [report_template()].
 #' @return `path`, invisibly.
 #' @examples
 #' \dontrun{
 #' repair_report_docx("report.docx")
 #' }
 #' @export
-repair_report_docx <- function(path, theme_colours = NULL) {
+repair_report_docx <- function(path, theme = NULL, template = report_template()) {
   if (!file.exists(path))
     cli::cli_abort("No file to repair at {.file {path}}.")
   path <- normalizePath(path, winslash = "/")
@@ -64,19 +61,26 @@ repair_report_docx <- function(path, theme_colours = NULL) {
   document <- widen_landscape_images(document)
   document <- keep_table_rows_together(document)
   document <- drop_trailing_empty_section(document)
+  document <- populate_toc(document)
   writeChar(document, doc_path, eos = NULL, useBytes = TRUE)
 
-  if (length(theme_colours)) {
-    theme_path <- file.path(work, "word", "theme", "theme1.xml")
-    theme <- readChar(theme_path, file.size(theme_path), useBytes = TRUE)
-    writeChar(set_theme_colours(theme, theme_colours), theme_path, eos = NULL, useBytes = TRUE)
+  apply_theme(work, resolve_theme(as_report_theme(theme)), template)
+
+  settings_path <- file.path(work, "word", "settings.xml")
+  if (file.exists(settings_path)) {
+    settings <- readChar(settings_path, file.size(settings_path), useBytes = TRUE)
+    writeChar(gsub("<w:updateFields[^>]*/>", "", settings), settings_path, eos = NULL, useBytes = TRUE)
   }
 
+  zip_docx(work, path)
+  invisible(path)
+}
+
+zip_docx <- function(work, path) {
   old <- setwd(work)
   on.exit(setwd(old), add = TRUE)
   unlink(path)
-  status <- utils::zip(path, list.files(".", recursive = TRUE, all.files = TRUE),
-                       flags = "-r9Xq")
+  status <- utils::zip(path, list.files(".", recursive = TRUE, all.files = TRUE), flags = "-r9Xq")
   if (!identical(status, 0L) || !file.exists(path))
     cli::cli_abort("Could not rewrite {.file {path}}: the zip step failed.")
   invisible(path)
@@ -234,36 +238,151 @@ drop_trailing_empty_section <- function(document) {
          substring(document, body_end + 1L, nchar(document)))
 }
 
-# ---- Theme colours ----
+# ---- Theme ----
 
-THEME_COLOUR_NAMES <- c(
-  dark1 = "dk1", light1 = "lt1", dark2 = "dk2", light2 = "lt2",
-  accent1 = "accent1", accent2 = "accent2", accent3 = "accent3",
-  accent4 = "accent4", accent5 = "accent5", accent6 = "accent6",
-  hyperlink = "hlink", followed_hyperlink = "folHlink"
-)
+# Word's names for the theme colour slots as they appear in styles
+# (w:themeColor) against their tags in theme1.xml.
+THEME_SLOT_REFS <- c(dk1 = "text1", lt1 = "background1", dk2 = "text2", lt2 = "background2",
+                     accent1 = "accent1", accent2 = "accent2", accent3 = "accent3",
+                     accent4 = "accent4", accent5 = "accent5", accent6 = "accent6",
+                     hlink = "hyperlink", folHlink = "followedHyperlink")
+
+#' Apply a resolved theme to an unpacked report
+#'
+#' Each colour element is written to its theme slot in `theme1.xml` and to
+#' the literal fallbacks beside every reference to that slot in the
+#' document, styles, headers and footers (Word reads the slot, other
+#' renderers the literal, so both agree and Word's Design menu still
+#' works). Font elements replace the template's typefaces by role, and
+#' `font.size` scales every size in the template.
+#'
+#' @param work The unpacked docx folder.
+#' @param values A resolved theme, from [resolve_theme()].
+#' @param template The template specification, from [report_template()]:
+#'   its `fonts` and `font_size` are what the theme's replace.
+#' @return `work`, invisibly.
+#' @keywords internal
+apply_theme <- function(work, values, template) {
+  edit <- function(path, f) {
+    if (!file.exists(path)) return(invisible())  # a docx built without a theme part keeps its literals only
+    xml <- readChar(path, file.size(path), useBytes = TRUE)
+    writeChar(f(xml), path, eos = NULL, useBytes = TRUE)
+  }
+  theme_path <- file.path(work, "word", "theme", "theme1.xml")
+  parts <- list.files(file.path(work, "word"), "^(document|styles|header[0-9]*|footer[0-9]*)\\.xml$", full.names = TRUE)
+  slots <- vapply(Filter(function(s) !is.null(s$slot), template$elements), `[[`, character(1), "slot")
+  colours <- stats::setNames(unlist(values[names(slots)]), slots)
+  roles <- vapply(Filter(function(s) !is.null(s$role), template$elements), `[[`, character(1), "role")
+  fonts <- stats::setNames(unlist(values[names(roles)]), roles)
+  edit(theme_path, function(xml) set_theme_fonts(set_theme_colours(xml, colours), fonts))
+  for (part in parts) edit(part, function(xml)
+    scale_font_sizes(set_font_literals(set_theme_literals(xml, colours), fonts, template$fonts),
+                     values$font.size, template$font_size))
+  invisible(work)
+}
 
 #' Replace entries of a theme's colour scheme
 #'
 #' @param theme The theme1.xml text.
-#' @param colours Named hex colours, see [repair_report_docx()].
+#' @param colours Hex colours named by slot tag (`accent1`, `dk2`, `hlink`).
 #' @return The theme1.xml text with those entries replaced.
 #' @keywords internal
 set_theme_colours <- function(theme, colours) {
-  colours <- unlist(colours)
-  unknown <- setdiff(names(colours), names(THEME_COLOUR_NAMES))
-  if (length(unknown))
-    cli::cli_abort(c("Unknown theme colour{?s}: {.val {unknown}}.",
-                     "i" = "Use {.val {names(THEME_COLOUR_NAMES)}}."))
-  hex <- toupper(sub("^#", "", as.character(colours)))
-  bad <- !grepl("^[0-9A-F]{6}$", hex)
-  if (any(bad))
-    cli::cli_abort("Theme colour{?s} {.val {names(colours)[bad]}} must be six-digit hex.")
-  for (i in seq_along(hex)) {
-    tag <- THEME_COLOUR_NAMES[[names(colours)[i]]]
+  for (tag in names(colours))
     theme <- sub(paste0("(?s)<a:", tag, ">.*?</a:", tag, ">"),
-                 paste0("<a:", tag, "><a:srgbClr val=\"", hex[i], "\"/></a:", tag, ">"),
+                 paste0("<a:", tag, "><a:srgbClr val=\"", colours[[tag]], "\"/></a:", tag, ">"),
                  theme, perl = TRUE)
+  theme
+}
+
+#' Rewrite the literal fallbacks of theme-bound colours
+#'
+#' Word reads a `w:themeColor` or `w:themeFill` attribute and ignores the
+#' literal `w:color`, `w:val` or `w:fill` beside it; other renderers do the
+#' reverse. Every literal that sits beside a reference to a slot being set
+#' is rewritten to the new colour, with `w:themeFillTint` and
+#' `w:themeShade` applied, so both readings agree.
+#'
+#' @param xml The text of a document, styles, header or footer part.
+#' @param colours Hex colours named by slot tag.
+#' @return The part with its literal colours rewritten.
+#' @keywords internal
+set_theme_literals <- function(xml, colours) {
+  scheme <- stats::setNames(colours, THEME_SLOT_REFS[names(colours)])
+  mix <- function(base, amount, towards) {
+    rgb <- grDevices::col2rgb(paste0("#", base))
+    sub("^#", "", grDevices::rgb(t(round(rgb * (1 - amount) + towards * amount)), maxColorValue = 255))
+  }
+  rewrite <- function(match) {
+    ref <- sub('.*w:theme(?:Color|Fill)="([A-Za-z0-9]+)".*', "\\1", match)
+    if (!ref %in% names(scheme)) return(match)
+    colour <- scheme[[ref]]
+    tint <- regmatches(match, regexpr('w:theme(?:Fill)?Tint="[0-9A-Fa-f]+"', match))
+    shade <- regmatches(match, regexpr('w:theme(?:Fill)?Shade="[0-9A-Fa-f]+"', match))
+    if (length(tint)) colour <- mix(colour, 1 - strtoi(sub('.*"([0-9A-Fa-f]+)"', "\\1", tint), 16L) / 255, 255)
+    if (length(shade)) colour <- mix(colour, 1 - strtoi(sub('.*"([0-9A-Fa-f]+)"', "\\1", shade), 16L) / 255, 0)
+    sub('(w:(?:color|fill|val))="[0-9A-Fa-f]{6}"', paste0("\\1=\"", toupper(colour), "\""), match, perl = TRUE)
+  }
+  pattern <- '<w:[a-zA-Z]+ [^>]*w:theme(?:Color|Fill)="[A-Za-z0-9]+"[^>]*/?>'
+  hits <- gregexpr(pattern, xml, perl = TRUE)
+  regmatches(xml, hits) <- list(vapply(regmatches(xml, hits)[[1]], rewrite, character(1), USE.NAMES = FALSE))
+  xml
+}
+
+#' Set the theme's major and minor fonts
+#'
+#' @param theme The theme1.xml text.
+#' @param fonts Typefaces named by role; `heading` sets the major font and
+#'   `body` the minor.
+#' @return The theme1.xml text.
+#' @keywords internal
+set_theme_fonts <- function(theme, fonts) {
+  for (role in intersect(names(fonts), c("heading", "body"))) {
+    tag <- if (role == "heading") "majorFont" else "minorFont"
+    theme <- sub(paste0("(?s)(<a:", tag, ">\\s*<a:latin typeface=\")[^\"]*"),
+                 paste0("\\1", fonts[[role]]), theme, perl = TRUE)
   }
   theme
+}
+
+#' Swap the template's typefaces for the fonts named
+#'
+#' Every `w:rFonts` attribute naming a template font is rewritten to the
+#' font chosen for that role: `heading` in the heading styles, `title` for
+#' the title acronym, `code` for code, `body` everywhere else.
+#'
+#' @param xml The text of a document, styles, header or footer part.
+#' @param fonts Typefaces named by role.
+#' @param template_fonts The typefaces the template is written in, by role.
+#' @return The part with its fonts rewritten.
+#' @keywords internal
+set_font_literals <- function(xml, fonts, template_fonts) {
+  swap <- function(text, from, to)
+    gsub(paste0('(w:(?:ascii|hAnsi|cs|eastAsia))="', from, '"'), paste0('\\1="', to, '"'), text, perl = TRUE)
+  styles <- gregexpr("(?s)<w:style [^>]*>.*?</w:style>|<w:docDefaults>.*?</w:docDefaults>", xml, perl = TRUE)
+  regmatches(xml, styles) <- list(vapply(regmatches(xml, styles)[[1]], function(style) {
+    role <- if (grepl('w:styleId="Heading[0-9]', style)) "heading" else "body"
+    style <- swap(style, template_fonts[["body"]], fonts[[role]])
+    style <- swap(style, template_fonts[["title"]], fonts[["title"]])
+    swap(style, template_fonts[["code"]], fonts[["code"]])
+  }, character(1), USE.NAMES = FALSE))
+  swap(xml, template_fonts[["body"]], fonts[["body"]])
+}
+
+#' Scale every font size in a part
+#'
+#' @param xml The text of a document, styles, header or footer part.
+#' @param body_pt The body size in points wanted.
+#' @param template_pt The template's body size in points; every `w:sz` and
+#'   `w:szCs` is scaled by their ratio.
+#' @return The part with its sizes scaled.
+#' @keywords internal
+scale_font_sizes <- function(xml, body_pt, template_pt) {
+  factor <- body_pt / template_pt
+  if (factor == 1) return(xml)
+  hits <- gregexpr('<w:sz(?:Cs)? w:val="[0-9]+"', xml)
+  regmatches(xml, hits) <- list(vapply(regmatches(xml, hits)[[1]], function(m)
+    sub('"[0-9]+"', paste0('"', max(2L, round(as.integer(sub('.*"([0-9]+)"', "\\1", m)) * factor)), '"'), m),
+    character(1), USE.NAMES = FALSE))
+  xml
 }

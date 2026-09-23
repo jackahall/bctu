@@ -162,12 +162,60 @@ test_that("an empty final section after a landscape break is dropped", {
   expect_equal(drop_trailing_empty_section(content_tail), content_tail)
 })
 
-test_that("theme colours are replaced by name and validated", {
-  theme <- "<a:clrScheme name=\"x\"><a:dk2><a:srgbClr val=\"111111\"/></a:dk2><a:accent1><a:srgbClr val=\"222222\"/></a:accent1><a:hlink><a:srgbClr val=\"333333\"/></a:hlink></a:clrScheme>"
-  out <- set_theme_colours(theme, list(accent1 = "#abcdef", hyperlink = "000000"))
+test_that("a theme resolves by inheritance and lands in the theme and the literals", {
+  expect_equal(resolve_theme(report_theme())$table.header.fill, "F3EBCC")
+  blue <- resolve_theme(report_theme(colour.accent = "#0057BF", font.body = "Georgia"))
+  expect_equal(blue$rule.colour, "0057BF")
+  expect_equal(blue$table.border.colour, "0057BF")
+  expect_equal(blue$table.header.fill, tint("0057BF", 0.8))
+  expect_equal(blue$font.heading, "Georgia")
+  expect_equal(resolve_theme(report_theme(rule.colour = "FF0000"))$colour.accent, "C59A00")
+  expect_error(as_report_theme(list(accent = "x")), "Unknown theme element")
+  expect_error(resolve_theme(report_theme(link.colour = "blue")), "six-digit hex")
+  expect_error(resolve_theme(report_theme(font.size = "big")), "positive number")
+
+  theme <- "<a:dk2><a:srgbClr val=\"111111\"/></a:dk2><a:accent1><a:srgbClr val=\"222222\"/></a:accent1><a:majorFont><a:latin typeface=\"Calibri\"/></a:majorFont><a:minorFont><a:latin typeface=\"Cambria\"/></a:minorFont>"
+  out <- set_theme_fonts(set_theme_colours(theme, c(accent1 = "ABCDEF")), c(body = "Georgia", heading = "Verdana"))
   expect_true(grepl("<a:accent1><a:srgbClr val=\"ABCDEF\"/></a:accent1>", out, fixed = TRUE))
-  expect_true(grepl("<a:hlink><a:srgbClr val=\"000000\"/></a:hlink>", out, fixed = TRUE))
   expect_true(grepl("111111", out, fixed = TRUE))
-  expect_error(set_theme_colours(theme, list(accent9 = "000000")), "Unknown theme colour")
-  expect_error(set_theme_colours(theme, list(accent1 = "red")), "six-digit hex")
+  expect_true(grepl("<a:majorFont><a:latin typeface=\"Verdana\"", out, fixed = TRUE))
+  expect_true(grepl("<a:minorFont><a:latin typeface=\"Georgia\"", out, fixed = TRUE))
+
+  xml <- paste0('<w:top w:val="single" w:color="C59A00" w:themeColor="accent2"/>',
+                '<w:shd w:val="clear" w:fill="F5EDD4" w:themeFill="accent1" w:themeFillTint="33"/>',
+                '<w:color w:val="3C3C3B" w:themeColor="text2"/>')
+  out <- set_theme_literals(xml, c(accent2 = "0057BF", accent1 = "FF0000"))
+  expect_true(grepl('w:color="0057BF" w:themeColor="accent2"', out, fixed = TRUE))
+  expect_true(grepl('w:fill="FFCCCC" w:themeFill="accent1"', out, fixed = TRUE))
+  expect_true(grepl('w:val="3C3C3B" w:themeColor="text2"', out, fixed = TRUE))
+
+  styles <- paste0('<w:docDefaults><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/></w:rPr></w:docDefaults>',
+                   '<w:style w:styleId="Heading1"><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="32"/></w:style>',
+                   '<w:style w:styleId="TitleAcronym"><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/></w:style>')
+  out <- set_font_literals(styles, c(body = "Georgia", heading = "Verdana", title = "Impact", code = "Consolas"), report_template()$fonts)
+  expect_true(grepl('<w:docDefaults><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/>', out, fixed = TRUE))
+  expect_true(grepl('Heading1"><w:rFonts w:ascii="Verdana" w:hAnsi="Verdana"/>', out, fixed = TRUE))
+  expect_true(grepl('w:ascii="Impact" w:hAnsi="Impact"', out, fixed = TRUE))
+  sized <- scale_font_sizes(styles, 22, 11)
+  expect_true(grepl('<w:sz w:val="44"/>', sized, fixed = TRUE))
+  expect_true(grepl('<w:sz w:val="64"/>', sized, fixed = TRUE))
+})
+
+test_that("the TOC field is filled with linked, numbered entries", {
+  heading <- function(id, name, level, number, title) paste0(
+    '<w:bookmarkStart w:id="', id, '" w:name="', name, '" /><w:p><w:pPr><w:pStyle w:val="Heading', level, '" /></w:pPr>',
+    '<w:r><w:rPr><w:rStyle w:val="SectionNumber" /></w:rPr><w:t xml:space="preserve">', number, '</w:t></w:r><w:r><w:tab /></w:r>',
+    '<w:r><w:t xml:space="preserve">', title, '</w:t></w:r></w:p>')
+  toc <- paste0('<w:p><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve">TOC \\o &quot;1-2&quot; \\h \\z \\u</w:instrText></w:r>',
+                '<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>placeholder</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>')
+  document <- paste0("<w:body>", toc, heading(1, "one", 1, "1", "One"), heading(2, "one-a", 2, "1.1", "One A"), heading(3, "deep", 3, "1.1.1", "Deep"), "</w:body>")
+  out <- populate_toc(document)
+  expect_false(grepl("placeholder", out, fixed = TRUE))
+  expect_equal(lengths(regmatches(out, gregexpr('<w:pStyle w:val="TOC[12]"/>', out)))[[1]], 2L)
+  expect_false(grepl('w:val="TOC3"', out, fixed = TRUE))
+  expect_true(grepl('<w:hyperlink w:anchor="one-a" w:history="1">', out, fixed = TRUE))
+  expect_true(grepl('PAGEREF one \\h </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t xml:space="preserve"></w:t>', out, fixed = TRUE))
+  expect_equal(lengths(regmatches(out, gregexpr('w:dirty="true"', out)))[[1]], 3L)
+  expect_equal(lengths(regmatches(out, gregexpr('fldCharType="begin"', out)))[[1]], 3L)
+  expect_equal(lengths(regmatches(out, gregexpr('fldCharType="end"', out)))[[1]], 3L)
 })

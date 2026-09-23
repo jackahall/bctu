@@ -4,9 +4,11 @@
 \alias{trial_report}
 \title{BCTU trial report Word output format}
 \usage{
-trial_report(...)
+trial_report(template = "bctu", ...)
 }
 \arguments{
+\item{template}{The report template, by name (\code{"bctu"}).}
+
 \item{...}{Arguments passed to \code{\link[rmarkdown:word_document]{rmarkdown::word_document()}}. Any
 \code{pandoc_args} are appended after the bundled Lua filter. A
 \code{reference_docx} replaces the bundled BCTU template, with a warning.}
@@ -32,18 +34,20 @@ output:
   bctu::trial_report: default
 }
 
-\code{theme-colours} in the YAML header recolours the document's theme, and
-with it every table border, header shading, caption and link that the
-template ties to a theme colour; each entry is a hex colour under one of
-\code{dark1}, \code{light1}, \code{dark2}, \code{light2}, \code{accent1} to \code{accent6},
-\code{hyperlink}, \code{followed_hyperlink} (see \code{\link[=repair_report_docx]{repair_report_docx()}}). The
-defaults are the UoB colours, and the same colours can be changed later
-in Word under Design, Colors.
+\code{theme} in the YAML header restyles the document. Its keys are the
+elements of \code{\link[=report_theme]{report_theme()}}, which inherit from one another (set
+\code{colour.accent} and every rule, border and header fill follows; set one
+of them to override just that), and every element not given keeps the
+template default: UoB gold accents, Arial at 11 pt, the title acronym in
+Times New Roman. The same colours and fonts can be changed afterwards in
+Word under Design.
 
 \preformatted{
-theme-colours:
-  accent1: "C59A00"
-  hyperlink: "0057BF"
+theme:
+  colour.accent: "C59A00"
+  table.header.fill: "F3EBCC"
+  font.body: "Arial"
+  font.size: 11
 }
 
 The title-page filter reads these YAML keys (pandoc's own \code{title},
@@ -63,6 +67,16 @@ its own after the title page. Omit the key for no such page.
 In RStudio, \strong{File > New File > R Markdown > From Template > "BCTU trial
 report (Word)"} opens a skeleton with every key filled in.
 }
+\section{Templates}{
+
+A template is a named entry of the package's template registry: a folder
+of resources (the reference document and pandoc filter) and the elements
+of \code{\link[=report_theme]{report_theme()}} mapped onto it. Only \code{"bctu"} ships today. Adding a
+Word template is adding a resources folder and a registry entry; a PDF
+or HTML template would be a new output format built the same way, taking
+the same \code{\link[=report_theme]{report_theme()}} so one theme styles every format.
+}
+
 \seealso{
 \code{\link[=fig_portrait]{fig_portrait()}} for the figure-size chunk templates.
 }

@@ -2,7 +2,9 @@
 
 ## Changes
 
-* The template's table borders and header shading, caption text and links are tied to the document theme colours (a BCTU scheme with UoB gold as accent 1), so a report recolours from Word's Design, Colors. New `trial_report` YAML key `theme-colours` sets those colours at render time; `repair_report_docx()` gains `theme_colours`.
+* The table of contents opens already filled: the post-processor writes the headings into Word's own TOC field, linked to their bookmarks, with page-number fields Word computes when it opens the file, and the update-every-field prompt is gone.
+* `trial_report()` gains `template`; the templates the package ships are named in a registry that carries each one's resources and theme mapping.
+* New `report_theme()`, a ggplot2-style theme for `trial_report`: named elements (`colour.accent`, `rule.colour`, `table.border.colour`, `table.header.fill`, `text.secondary.colour`, `link.colour`, `font.body`, `font.heading`, `font.title`, `font.code`, `font.size`) that inherit from one another, given in R or as the YAML `theme` key. The template ties each colour to its own Word theme slot, so a report also recolours from Word's Design menu, and the post-processor writes both the theme and the literal fallbacks other renderers read. `repair_report_docx()` gains `theme`.
 * A figure's image sits in its caption paragraph, which keeps its lines together, so a caption is never left at the foot of a page with the image on the next.
 * A report whose last content is landscape no longer ends with a blank portrait page.
 * `render_table()` turns `indent()` levels into label columns: a label is merged rightwards over the deeper label columns and a deeper label sits in its own column beneath it, in place of non-breaking-space indentation. `grid_table()` gains `levels` for the same layout.

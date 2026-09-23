@@ -9,7 +9,7 @@ set_theme_colours(theme, colours)
 \arguments{
 \item{theme}{The theme1.xml text.}
 
-\item{colours}{Named hex colours, see \code{\link[=repair_report_docx]{repair_report_docx()}}.}
+\item{colours}{Hex colours named by slot tag (\code{accent1}, \code{dk2}, \code{hlink}).}
 }
 \value{
 The theme1.xml text with those entries replaced.
