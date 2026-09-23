@@ -1,3 +1,9 @@
+# bctu 0.24.2
+
+## Changes
+
+* The table of contents field is no longer flagged for update: even that one flag brought Word's update prompt back on every opening. F9 on the table fills the page numbers.
+
 # bctu 0.24.1
 
 ## Changes

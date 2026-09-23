@@ -24,8 +24,7 @@ test_that("a full trial report renders with every layout feature in place", {
   settings <- read("word/settings.xml"); theme <- read("word/theme/theme1.xml")
   header <- read("word/header1.xml"); footer <- read("word/footer1.xml")
 
-  expect_equal(lengths(regmatches(document, gregexpr("w:dirty", document)))[[1]], 1L)
-  expect_true(grepl('<w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve">TOC', document, fixed = TRUE))
+  expect_false(grepl("w:dirty", document, fixed = TRUE))
   expect_false(grepl("updateFields", settings, fixed = TRUE))
   expect_false(grepl("w:dirty", paste(header, footer), fixed = TRUE))
   expect_true(grepl(">TEST<", header, fixed = TRUE))

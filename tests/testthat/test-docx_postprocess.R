@@ -215,7 +215,7 @@ test_that("the TOC field is filled with linked, numbered entries", {
   expect_false(grepl('w:val="TOC3"', out, fixed = TRUE))
   expect_true(grepl('<w:hyperlink w:anchor="one-a" w:history="1">', out, fixed = TRUE))
   expect_true(grepl('PAGEREF one \\h </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t xml:space="preserve"></w:t>', out, fixed = TRUE))
-  expect_equal(lengths(regmatches(out, gregexpr("dirty", out)))[[1]], 1L)
+  expect_false(grepl("dirty", out, fixed = TRUE))
   expect_equal(lengths(regmatches(out, gregexpr('fldCharType="begin"', out)))[[1]], 3L)
   expect_equal(lengths(regmatches(out, gregexpr('fldCharType="end"', out)))[[1]], 3L)
 })
