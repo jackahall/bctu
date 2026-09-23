@@ -517,6 +517,13 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #' In RStudio, **File > New File > R Markdown > From Template > "BCTU trial
 #' report (Word)"** opens a skeleton with every key filled in.
 #'
+#' @section Styles:
+#' Every style in the template is reachable from the Rmd through pandoc's
+#' `custom-style` attribute, by style name: a fenced div
+#' `::: {custom-style="Footnote Block Text"}` for paragraphs, a bracketed
+#' span `[text]{custom-style="Section Number"}` for runs. [report_styles()]
+#' lists the names.
+#'
 #' @section Templates:
 #' A template is a named entry of the package's template registry: a folder
 #' of resources (the reference document and pandoc filter) and the elements

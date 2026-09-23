@@ -219,3 +219,10 @@ test_that("the TOC field is filled with linked, numbered entries", {
   expect_equal(lengths(regmatches(out, gregexpr('fldCharType="begin"', out)))[[1]], 3L)
   expect_equal(lengths(regmatches(out, gregexpr('fldCharType="end"', out)))[[1]], 3L)
 })
+
+test_that("report_styles lists the template's styles by pandoc name", {
+  styles <- report_styles()
+  expect_true(all(c("Table Caption", "Footnote Block Text", "Section Number", "TOC1") %in% c(styles$name, styles$id)))
+  expect_setequal(unique(styles$type), c("paragraph", "character", "table"))
+  expect_false(any(duplicated(styles$id)))
+})

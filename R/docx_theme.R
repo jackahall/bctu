@@ -46,6 +46,34 @@ report_template <- function(name = "bctu") {
   spec
 }
 
+#' The styles a report template offers
+#'
+#' Every paragraph, character and table style in the template's reference
+#' document, by the name pandoc's `custom-style` attribute uses. In an Rmd,
+#' `::: {custom-style="Footnote Block Text"}` wraps paragraphs in a
+#' paragraph style and `[text]{custom-style="Section Number"}` applies a
+#' character style, so any style in the template can be reached without
+#' editing it.
+#'
+#' @param template The template name, see [trial_report()].
+#' @return A data frame with `type`, `name` and `id`, in template order.
+#' @examples
+#' head(report_styles())
+#' @export
+report_styles <- function(template = "bctu") {
+  spec <- report_template(template)
+  reference <- file.path(spec$resources, spec$reference)
+  styles <- readChar(unz(reference, "word/styles.xml"), 1e7, useBytes = TRUE)
+  hits <- regmatches(styles, gregexpr('<w:style w:type="[^"]+"[^>]*w:styleId="[^"]+"[^>]*>\\s*<w:name w:val="[^"]+"', styles))[[1]]
+  out <- data.frame(
+    type = sub('.*w:type="([^"]+)".*', "\\1", hits),
+    name = sub('.*<w:name w:val="([^"]+)"', "\\1", hits),
+    id   = sub('.*w:styleId="([^"]+)".*', "\\1", hits),
+    stringsAsFactors = FALSE
+  )
+  out[out$type %in% c("paragraph", "character", "table"), ]
+}
+
 # ---- Theme elements ----------------------------------------------------------
 
 # Every themable element of the template, in dependency order. An element
