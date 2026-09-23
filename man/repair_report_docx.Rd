@@ -25,8 +25,9 @@ widens full-width images inside landscape sections to the landscape text
 width, keeps each caption with the start of its table, drops the empty
 final section a report ends in when its last content is landscape,
 applies any theme given, fills the table of contents with the headings
-(see \code{\link[=populate_toc]{populate_toc()}}) and removes pandoc's update-fields-on-open setting,
-so Word opens the file without a prompt.
+(see \code{\link[=populate_toc]{populate_toc()}}), removes pandoc's update-fields-on-open setting so
+Word opens the file without a prompt, and stamps the package version and
+template into the document properties (see \code{\link[=stamp_provenance]{stamp_provenance()}}).
 }
 \examples{
 \dontrun{

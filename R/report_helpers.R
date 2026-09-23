@@ -52,6 +52,8 @@ indent_depth <- function(x) {
 #' n_pct(5, 7, digits = 1)
 #' @export
 n_pct <- function(n, N, digits = 0L) {
+  if (!is.numeric(n) || !is.numeric(N) || length(N) != 1L && length(N) != length(n))
+    cli::cli_abort("{.arg n} and {.arg N} must be numeric, with {.arg N} of length 1 or the length of {.arg n}.")
   pct <- formatC(100 * n / N, format = "f", digits = digits)
   ifelse(N == 0, paste0(n, "/", N), paste0(n, "/", N, " (", pct, "%)"))
 }

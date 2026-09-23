@@ -168,7 +168,11 @@ resolve_theme <- function(theme) {
   }
   colours <- names(Filter(function(s) !is.null(s$slot), THEME_ELEMENTS))
   values[colours] <- lapply(values[colours], normalise_hex)
-  if (!is.numeric(values$font.size) || length(values$font.size) != 1L || values$font.size <= 0)
+  fonts <- names(Filter(function(s) !is.null(s$role), THEME_ELEMENTS))
+  for (f in fonts)
+    if (!is.character(values[[f]]) || length(values[[f]]) != 1L || !nzchar(trimws(values[[f]])))
+      cli::cli_abort("{.arg {f}} must be one typeface name, not {.val {values[[f]]}}.")
+  if (!is.numeric(values$font.size) || length(values$font.size) != 1L || is.na(values$font.size) || values$font.size <= 0)
     cli::cli_abort("{.arg font.size} must be one positive number of points.")
   values
 }

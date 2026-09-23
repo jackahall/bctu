@@ -1,6 +1,6 @@
 Package: bctu
 Title: BCTU Clinical-Trial Data Management (Rebuild)
-Version: 0.23.0
+Version: 0.24.0
 Authors@R: person("Jack", "Hall", email = "j.a.hall.1@bham.ac.uk", role = c("aut", "cre"))
 Description: Regulated clinical-trial data management for the Birmingham Clinical
     Trials Unit: explicit project configuration, uniform data sources, immutable
@@ -15,7 +15,8 @@ Imports:
     grDevices,
     graphics,
     grid,
-    yaml
+    yaml,
+    zip
 Suggests:
     testthat (>= 3.0.0),
     DBI,

@@ -28,8 +28,9 @@ PAGE_MARGIN_TWIPS <- 2880L
 #' width, keeps each caption with the start of its table, drops the empty
 #' final section a report ends in when its last content is landscape,
 #' applies any theme given, fills the table of contents with the headings
-#' (see [populate_toc()]) and removes pandoc's update-fields-on-open setting,
-#' so Word opens the file without a prompt.
+#' (see [populate_toc()]), removes pandoc's update-fields-on-open setting so
+#' Word opens the file without a prompt, and stamps the package version and
+#' template into the document properties (see [stamp_provenance()]).
 #'
 #' @param path Path to the docx.
 #' @param theme A [report_theme()], a named list of its elements (the YAML
@@ -79,17 +80,16 @@ repair_report_docx <- function(path, theme = NULL, template = report_template())
   }
 
   apply_theme(work, resolve_theme(as_report_theme(theme)), template)
+  stamp_provenance(work, template)
 
   zip_docx(work, path)
   invisible(path)
 }
 
 zip_docx <- function(work, path) {
-  old <- setwd(work)
-  on.exit(setwd(old), add = TRUE)
   unlink(path)
-  status <- utils::zip(path, list.files(".", recursive = TRUE, all.files = TRUE), flags = "-r9Xq")
-  if (!identical(status, 0L) || !file.exists(path))
+  zip::zip(path, list.files(work, recursive = TRUE, all.files = TRUE), root = work)
+  if (!file.exists(path))
     cli::cli_abort("Could not rewrite {.file {path}}: the zip step failed.")
   invisible(path)
 }
@@ -393,4 +393,60 @@ scale_font_sizes <- function(xml, body_pt, template_pt) {
     sub('"[0-9]+"', paste0('"', max(2L, round(as.integer(sub('.*"([0-9]+)"', "\\1", m)) * factor)), '"'), m),
     character(1), USE.NAMES = FALSE))
   xml
+}
+
+# ---- Provenance ----
+
+#' Stamp the package version and template into the document properties
+#'
+#' Writes `bctu <version>` and the template name into the docx core
+#' properties (keywords) and application property, so File, Info in Word, or
+#' [report_provenance()], says which package rendered the file. Nothing is
+#' printed on any page.
+#'
+#' @param work The unpacked docx folder.
+#' @param template The template specification, from [report_template()].
+#' @return `work`, invisibly.
+#' @keywords internal
+stamp_provenance <- function(work, template) {
+  version <- as.character(utils::packageVersion("bctu"))
+  keywords <- paste0("bctu ", version, "; template ", template$name, "; rendered ",
+                     format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
+  core_path <- file.path(work, "docProps", "core.xml")
+  if (file.exists(core_path)) {
+    core <- readChar(core_path, file.size(core_path), useBytes = TRUE)
+    core <- gsub("<cp:keywords>.*?</cp:keywords>", "", core)
+    core <- sub("</cp:coreProperties>", paste0("<cp:keywords>", keywords, "</cp:keywords></cp:coreProperties>"), core, fixed = TRUE)
+    writeChar(core, core_path, eos = NULL, useBytes = TRUE)
+  }
+  app_path <- file.path(work, "docProps", "app.xml")
+  if (file.exists(app_path)) {
+    app <- readChar(app_path, file.size(app_path), useBytes = TRUE)
+    app <- if (grepl("<Application>", app, fixed = TRUE))
+      sub("<Application>.*?</Application>", paste0("<Application>bctu ", version, "</Application>"), app)
+    else sub("</Properties>", paste0("<Application>bctu ", version, "</Application></Properties>"), app, fixed = TRUE)
+    writeChar(app, app_path, eos = NULL, useBytes = TRUE)
+  }
+  invisible(work)
+}
+
+#' Read the provenance stamp of a rendered report
+#'
+#' @param path Path to a docx rendered by [trial_report()].
+#' @return A list with `version`, `template` and `rendered`, or `NULL` for a
+#'   file without the stamp.
+#' @examples
+#' \dontrun{
+#' report_provenance("report.docx")
+#' }
+#' @export
+report_provenance <- function(path) {
+  if (!file.exists(path)) cli::cli_abort("No file at {.file {path}}.")
+  core <- tryCatch(readChar(unz(path, "docProps/core.xml"), 1e6, useBytes = TRUE), error = function(e) "")
+  keywords <- regmatches(core, regexpr("(?<=<cp:keywords>)bctu [^<]*(?=</cp:keywords>)", core, perl = TRUE))
+  if (!length(keywords)) return(NULL)
+  fields <- strsplit(keywords, "; ", fixed = TRUE)[[1]]
+  list(version  = sub("^bctu ", "", fields[1]),
+       template = sub("^template ", "", fields[2]),
+       rendered = sub("^rendered ", "", fields[3]))
 }

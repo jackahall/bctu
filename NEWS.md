@@ -1,15 +1,26 @@
-# bctu 0.23.0
+# bctu 0.24.0
 
 ## Changes
 
-* The table of contents opens already filled and Word no longer prompts on opening: the post-processor writes the headings into Word's own TOC field, linked to their bookmarks, and drops pandoc's update-fields-on-open setting and every dirty-field flag (the template's running-header fields carried one, which made Word ask on every opening). Page numbers appear on the first Update Field (F9) in Word.
-* New `report_styles()` lists the template's styles by the name pandoc's `custom-style` uses; the `trial_report` skeleton shows the `theme` key and the landscape and footnote divs.
-* `trial_report()` gains `template`; the templates the package ships are named in a registry that carries each one's resources and theme mapping.
-* New `report_theme()`, a ggplot2-style theme for `trial_report`: named elements (`colour.accent`, `rule.colour`, `table.border.colour`, `table.header.fill`, `text.secondary.colour`, `link.colour`, `font.body`, `font.heading`, `font.title`, `font.code`, `font.size`) that inherit from one another, given in R or as the YAML `theme` key. The template ties each colour to its own Word theme slot, so a report also recolours from Word's Design menu, and the post-processor writes both the theme and the literal fallbacks other renderers read. `repair_report_docx()` gains `theme`.
-* A figure's image sits in its caption paragraph, which keeps its lines together, so a caption is never left at the foot of a page with the image on the next.
-* A report whose last content is landscape no longer ends with a blank portrait page.
-* `render_table()` turns `indent()` levels into label columns: a label is merged rightwards over the deeper label columns and a deeper label sits in its own column beneath it, in place of non-breaking-space indentation. `grid_table()` gains `levels` for the same layout.
-* `render_table()` gains `bold_headings`; set `FALSE` to bold only `bold_rows`.
+* Every rendered docx carries a provenance stamp in its document properties (`bctu <version>`, template, render time), read back with `report_provenance()`.
+* New `check_report_layout()` lays a docx out with LibreOffice and reports orphaned captions, blank and sparse pages.
+* The docx is rewritten with the zip package, so no `zip` binary is needed.
+* Theme fonts and `font.size` are validated, as colours were; `n_pct()` checks its inputs.
+
+# bctu 0.23.0
+
+## Reports: tables
+
+* `render_table()` turns `indent()` levels into label columns: a label is merged rightwards over the deeper label columns and a deeper label sits in its own column beneath it, in place of non-breaking-space indentation. `grid_table()` gains `levels`.
+* `render_table()` gains `bold_rows` (a whole row in bold, for a primary outcome) and `bold_headings` (`FALSE` bolds only `bold_rows`). A cell may open with a `**label**`.
+* A `::: footnote` fenced div straight after a table is its footnote block, set against the table.
+* Captions keep with the start of their table (header row keep-with-next), figures sit inside their caption paragraph with lines kept together, and a report whose last content is landscape no longer ends with a blank page.
+
+## Reports: document
+
+* New `report_theme()`, a ggplot2-style theme for `trial_report`: elements `colour.accent`, `rule.colour`, `table.border.colour`, `table.header.fill`, `text.secondary.colour`, `link.colour`, `font.body`, `font.heading`, `font.title`, `font.code` and `font.size`, inheriting from one another, given in R or as the YAML `theme` key. Each colour is bound to its own Word theme slot, so a report also recolours from Word's Design menu; the post-processor writes the theme and the literal fallbacks other renderers read.
+* `trial_report()` gains `template`, from a registry naming each shipped template's resources and theme mapping. `report_styles()` lists a template's styles by the name pandoc's `custom-style` takes.
+* The table of contents opens filled with the headings, linked to their bookmarks, and Word no longer asks to update fields on opening (pandoc's update-on-open setting and every dirty-field flag, including the template's running-header fields, are removed). Page numbers appear on the first Update Field.
 
 # bctu 0.22.5
 
