@@ -1,3 +1,10 @@
+# bctu 0.24.1
+
+## Changes
+
+* The running header and footer fields are written with their results (`fill_running_fields()`): the header names the trial and report on opening rather than the template's placeholder, and the page-number fields carry a result region for Word to fill.
+* The table of contents field alone is flagged for update, so Word fills its page numbers on opening without the document-wide prompt.
+
 # bctu 0.24.0
 
 ## Changes

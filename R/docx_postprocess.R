@@ -28,9 +28,11 @@ PAGE_MARGIN_TWIPS <- 2880L
 #' width, keeps each caption with the start of its table, drops the empty
 #' final section a report ends in when its last content is landscape,
 #' applies any theme given, fills the table of contents with the headings
-#' (see [populate_toc()]), removes pandoc's update-fields-on-open setting so
-#' Word opens the file without a prompt, and stamps the package version and
-#' template into the document properties (see [stamp_provenance()]).
+#' (see [populate_toc()]), writes the running header and footer field
+#' results (see [fill_running_fields()]), removes pandoc's
+#' update-fields-on-open setting so Word opens the file without a prompt,
+#' and stamps the package version and template into the document properties
+#' (see [stamp_provenance()]).
 #'
 #' @param path Path to the docx.
 #' @param theme A [report_theme()], a named list of its elements (the YAML
@@ -63,6 +65,7 @@ repair_report_docx <- function(path, theme = NULL, template = report_template())
   document <- widen_landscape_images(document)
   document <- keep_table_rows_together(document)
   document <- drop_trailing_empty_section(document)
+  document <- gsub(' w:dirty="true"', "", document, fixed = TRUE)
   document <- populate_toc(document)
   writeChar(document, doc_path, eos = NULL, useBytes = TRUE)
 
@@ -71,12 +74,13 @@ repair_report_docx <- function(path, theme = NULL, template = report_template())
     settings <- readChar(settings_path, file.size(settings_path), useBytes = TRUE)
     writeChar(gsub("<w:updateFields[^>]*/>", "", settings), settings_path, eos = NULL, useBytes = TRUE)
   }
-  # A field flagged dirty makes Word ask to update on every opening, and a
-  # header or footer update never counts as a change, so the flag would
-  # survive each save. Fields recompute on demand without it.
-  for (part in list.files(file.path(work, "word"), "^(document|header[0-9]*|footer[0-9]*)\\.xml$", full.names = TRUE)) {
+  # A dirty header or footer field makes Word ask to update on every opening,
+  # because updating it never counts as a change, so the flag survives each
+  # save. The results are written here instead.
+  for (part in list.files(file.path(work, "word"), "^(header|footer)[0-9]*\\.xml$", full.names = TRUE)) {
     xml <- readChar(part, file.size(part), useBytes = TRUE)
-    writeChar(gsub(' w:dirty="true"', "", xml, fixed = TRUE), part, eos = NULL, useBytes = TRUE)
+    xml <- fill_running_fields(gsub(' w:dirty="true"', "", xml, fixed = TRUE), document)
+    writeChar(xml, part, eos = NULL, useBytes = TRUE)
   }
 
   apply_theme(work, resolve_theme(as_report_theme(theme)), template)

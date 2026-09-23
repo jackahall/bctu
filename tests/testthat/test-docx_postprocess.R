@@ -215,7 +215,7 @@ test_that("the TOC field is filled with linked, numbered entries", {
   expect_false(grepl('w:val="TOC3"', out, fixed = TRUE))
   expect_true(grepl('<w:hyperlink w:anchor="one-a" w:history="1">', out, fixed = TRUE))
   expect_true(grepl('PAGEREF one \\h </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t xml:space="preserve"></w:t>', out, fixed = TRUE))
-  expect_false(grepl("dirty", out, fixed = TRUE))
+  expect_equal(lengths(regmatches(out, gregexpr("dirty", out)))[[1]], 1L)
   expect_equal(lengths(regmatches(out, gregexpr('fldCharType="begin"', out)))[[1]], 3L)
   expect_equal(lengths(regmatches(out, gregexpr('fldCharType="end"', out)))[[1]], 3L)
 })
@@ -225,4 +225,32 @@ test_that("report_styles lists the template's styles by pandoc name", {
   expect_true(all(c("Table Caption", "Footnote Block Text", "Section Number", "TOC1") %in% c(styles$name, styles$id)))
   expect_setequal(unique(styles$type), c("paragraph", "character", "table"))
   expect_false(any(duplicated(styles$id)))
+})
+
+test_that("fill_running_fields evaluates STYLEREF, IF, PAGE and NUMPAGES", {
+  document <- paste0('<w:p><w:pPr><w:pStyle w:val="TitleAcronym" /></w:pPr><w:r><w:t>TEST &amp; Co</w:t></w:r></w:p>',
+                     '<w:p><w:pPr><w:pStyle w:val="ReportSubtype" /></w:pPr><w:r><w:t xml:space="preserve"></w:t></w:r></w:p>')
+  field <- function(instr, result = NULL, ...) paste0(
+    '<w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r>',
+    '<w:r><w:instrText xml:space="preserve">', instr, '</w:instrText></w:r>', ...,
+    if (!is.null(result)) paste0('<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>', result, '</w:t></w:r>'),
+    '<w:r><w:fldChar w:fldCharType="end"/></w:r>')
+  header <- paste0('<w:hdr><w:p>',
+    field('STYLEREF "TitleAcronym" \\* MERGEFORMAT ', "Trial"),
+    field('IF "', "Subtype", field('STYLEREF "ReportSubtype"', "Subtype"), '<w:r><w:instrText xml:space="preserve">" &lt;&gt; "" " - </w:instrText></w:r>',
+          field('STYLEREF "ReportSubtype"', "Subtype"), '<w:r><w:instrText xml:space="preserve">" ""</w:instrText></w:r>'),
+    field("PAGE"), field("AUTHOR", "Someone"),
+    '</w:p></w:hdr>')
+  out <- fill_running_fields(header, document)
+  results <- regmatches(out, gregexpr('(?<=fldCharType="separate"/></w:r><w:r>)(?:<w:rPr>.*?</w:rPr>)?<w:t[^>]*>[^<]*', out, perl = TRUE))[[1]]
+  results <- sub(".*>", "", results)
+  expect_equal(results, c("TEST &amp; Co", "", "", "", "1", "Someone"))
+  expect_equal(lengths(regmatches(out, gregexpr('fldCharType="(begin|end)"', out)))[[1]], 12L)
+  expect_true(grepl('<w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">1</w:t></w:r>', out, fixed = TRUE))
+})
+
+test_that("field_if compares its operands", {
+  expect_equal(field_if('IF "Open" <> "" " - Open" ""'), " - Open")
+  expect_equal(field_if('IF "" <> "" " - " ""'), "")
+  expect_equal(field_if('IF "a" = "a" "yes" "no"'), "yes")
 })
