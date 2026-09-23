@@ -70,6 +70,13 @@ repair_report_docx <- function(path, theme = NULL, template = report_template())
     settings <- readChar(settings_path, file.size(settings_path), useBytes = TRUE)
     writeChar(gsub("<w:updateFields[^>]*/>", "", settings), settings_path, eos = NULL, useBytes = TRUE)
   }
+  # A field flagged dirty makes Word ask to update on every opening, and a
+  # header or footer update never counts as a change, so the flag would
+  # survive each save. Fields recompute on demand without it.
+  for (part in list.files(file.path(work, "word"), "^(document|header[0-9]*|footer[0-9]*)\\.xml$", full.names = TRUE)) {
+    xml <- readChar(part, file.size(part), useBytes = TRUE)
+    writeChar(gsub(' w:dirty="true"', "", xml, fixed = TRUE), part, eos = NULL, useBytes = TRUE)
+  }
 
   apply_theme(work, resolve_theme(as_report_theme(theme)), template)
 

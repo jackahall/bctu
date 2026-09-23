@@ -2,7 +2,7 @@
 
 ## Changes
 
-* The table of contents opens already filled and Word no longer prompts on opening: the post-processor writes the headings into Word's own TOC field, linked to their bookmarks, and drops pandoc's update-fields-on-open setting. Page numbers appear on the first Update Field (F9) in Word.
+* The table of contents opens already filled and Word no longer prompts on opening: the post-processor writes the headings into Word's own TOC field, linked to their bookmarks, and drops pandoc's update-fields-on-open setting and every dirty-field flag (the template's running-header fields carried one, which made Word ask on every opening). Page numbers appear on the first Update Field (F9) in Word.
 * `trial_report()` gains `template`; the templates the package ships are named in a registry that carries each one's resources and theme mapping.
 * New `report_theme()`, a ggplot2-style theme for `trial_report`: named elements (`colour.accent`, `rule.colour`, `table.border.colour`, `table.header.fill`, `text.secondary.colour`, `link.colour`, `font.body`, `font.heading`, `font.title`, `font.code`, `font.size`) that inherit from one another, given in R or as the YAML `theme` key. The template ties each colour to its own Word theme slot, so a report also recolours from Word's Design menu, and the post-processor writes both the theme and the literal fallbacks other renderers read. `repair_report_docx()` gains `theme`.
 * A figure's image sits in its caption paragraph, which keeps its lines together, so a caption is never left at the foot of a page with the image on the next.
