@@ -28,7 +28,7 @@ PAGE_MARGIN_TWIPS <- 2880L
 #' width, keeps each caption with the start of its table, drops the empty
 #' final section a report ends in when its last content is landscape,
 #' applies any theme given, and fills the table of contents with the
-#' headings (see [populate_toc()]) so Word opens it without a prompt.
+#' headings (see [populate_toc()]).
 #'
 #' @param path Path to the docx.
 #' @param theme A [report_theme()], a named list of its elements (the YAML
@@ -65,12 +65,6 @@ repair_report_docx <- function(path, theme = NULL, template = report_template())
   writeChar(document, doc_path, eos = NULL, useBytes = TRUE)
 
   apply_theme(work, resolve_theme(as_report_theme(theme)), template)
-
-  settings_path <- file.path(work, "word", "settings.xml")
-  if (file.exists(settings_path)) {
-    settings <- readChar(settings_path, file.size(settings_path), useBytes = TRUE)
-    writeChar(gsub("<w:updateFields[^>]*/>", "", settings), settings_path, eos = NULL, useBytes = TRUE)
-  }
 
   zip_docx(work, path)
   invisible(path)

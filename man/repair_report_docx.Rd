@@ -25,7 +25,7 @@ widens full-width images inside landscape sections to the landscape text
 width, keeps each caption with the start of its table, drops the empty
 final section a report ends in when its last content is landscape,
 applies any theme given, and fills the table of contents with the
-headings (see \code{\link[=populate_toc]{populate_toc()}}) so Word opens it without a prompt.
+headings (see \code{\link[=populate_toc]{populate_toc()}}).
 }
 \examples{
 \dontrun{

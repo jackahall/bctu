@@ -13,14 +13,14 @@ populate_toc(document)
 The document.xml text.
 }
 \description{
-Pandoc leaves a Word TOC field whose result is a placeholder, and asks
-Word to update every field on opening, which Word does only after a
-prompt. This writes the field result itself, as Word would: one entry per
-heading within the field's depth, styled \code{TOC1} to \code{TOC3} (the
-template's styles carry the tab stops and dot leaders), linked to the
-heading's bookmark, ending in a \code{PAGEREF} field. The entries show at once
-in any viewer; the page-number fields are marked for Word to compute when
-it lays the document out, and the update-every-field flag is cleared so
-there is no prompt.
+Pandoc leaves a Word TOC field whose result is a placeholder sentence.
+This writes the field result itself, as Word would: one entry per heading
+within the field's depth, styled \code{TOC1} to \code{TOC3} (the template's styles
+carry the tab stops and dot leaders), linked to the heading's bookmark,
+ending in a \code{PAGEREF} field. The entries show at once in any viewer. Page
+numbers need Word's layout: the document keeps pandoc's update-fields-on-
+open setting, so Word asks once, fills them, and saving clears the
+setting. Fields are not marked dirty, which would make Word ask on every
+opening.
 }
 \keyword{internal}

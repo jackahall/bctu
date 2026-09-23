@@ -3,8 +3,9 @@
 #   Package:      bctu                                                         #
 #   Script:       docx_toc.R                                                   #
 #   Description:  Populate the Word table of contents of a rendered report:   #
-#                 the TOC field stays Word's own, opens already filled with   #
-#                 the headings, and Word computes the page numbers itself.    #
+#                 the TOC field stays Word's own and opens already filled     #
+#                 with the headings; Word fills the page numbers on its       #
+#                 first update.                                               #
 #                                                                              #
 #   Author:       Jack Hall                                                    #
 #   Email:        j.a.hall.1@bham.ac.uk                                        #
@@ -13,15 +14,15 @@
 
 #' Fill a report's table of contents
 #'
-#' Pandoc leaves a Word TOC field whose result is a placeholder, and asks
-#' Word to update every field on opening, which Word does only after a
-#' prompt. This writes the field result itself, as Word would: one entry per
-#' heading within the field's depth, styled `TOC1` to `TOC3` (the
-#' template's styles carry the tab stops and dot leaders), linked to the
-#' heading's bookmark, ending in a `PAGEREF` field. The entries show at once
-#' in any viewer; the page-number fields are marked for Word to compute when
-#' it lays the document out, and the update-every-field flag is cleared so
-#' there is no prompt.
+#' Pandoc leaves a Word TOC field whose result is a placeholder sentence.
+#' This writes the field result itself, as Word would: one entry per heading
+#' within the field's depth, styled `TOC1` to `TOC3` (the template's styles
+#' carry the tab stops and dot leaders), linked to the heading's bookmark,
+#' ending in a `PAGEREF` field. The entries show at once in any viewer. Page
+#' numbers need Word's layout: the document keeps pandoc's update-fields-on-
+#' open setting, so Word asks once, fills them, and saving clears the
+#' setting. Fields are not marked dirty, which would make Word ask on every
+#' opening.
 #'
 #' @param document The document.xml text.
 #' @return The document.xml text.
@@ -34,13 +35,13 @@ populate_toc <- function(document) {
   if (!nrow(headings)) return(document)
   entry <- function(h, first, last) paste0(
     '<w:p><w:pPr><w:pStyle w:val="TOC', h$level, '"/></w:pPr>',
-    if (first) paste0('<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>',
+    if (first) paste0('<w:r><w:fldChar w:fldCharType="begin"/></w:r>',
                       '<w:r><w:instrText xml:space="preserve">TOC \\o "1-', depth, '" \\h \\z \\u</w:instrText></w:r>',
                       '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'),
     '<w:hyperlink w:anchor="', h$bookmark, '" w:history="1">',
     if (nzchar(h$number)) paste0('<w:r><w:t xml:space="preserve">', h$number, '</w:t></w:r><w:r><w:tab/></w:r>'),
     '<w:r><w:t xml:space="preserve">', h$title, '</w:t></w:r><w:r><w:tab/></w:r>',
-    '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>',
+    '<w:r><w:fldChar w:fldCharType="begin"/></w:r>',
     '<w:r><w:instrText xml:space="preserve"> PAGEREF ', h$bookmark, ' \\h </w:instrText></w:r>',
     '<w:r><w:fldChar w:fldCharType="separate"/></w:r>',
     '<w:r><w:t xml:space="preserve"></w:t></w:r>',
