@@ -24,8 +24,9 @@ the title-page headers and footers to the relationship ids pandoc chose,
 widens full-width images inside landscape sections to the landscape text
 width, keeps each caption with the start of its table, drops the empty
 final section a report ends in when its last content is landscape,
-applies any theme given, and fills the table of contents with the
-headings (see \code{\link[=populate_toc]{populate_toc()}}).
+applies any theme given, fills the table of contents with the headings
+(see \code{\link[=populate_toc]{populate_toc()}}) and removes pandoc's update-fields-on-open setting,
+so Word opens the file without a prompt.
 }
 \examples{
 \dontrun{
