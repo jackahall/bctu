@@ -26,9 +26,18 @@ metadata:
 # page. Delete the key for no such page.
 confidential: "This report is confidential."
 
-# Optional Word table of contents (inserted after the title page).
+# Optional Word table of contents (inserted after the title page, filled with
+# the headings; page numbers appear on the first Update Field in Word).
 include-toc: true
 toc-depth:   3
+
+# Optional theme: report_theme() elements. Anything left out keeps the BCTU
+# default (UoB gold accents, Arial 11 pt, Times New Roman title). Children
+# inherit: set colour.accent and the rules, borders and header fill follow.
+theme:
+  colour.accent: "C59A00"
+  font.body:     "Arial"
+  font.size:     11
 
 output:
   bctu::trial_report: default
@@ -73,3 +82,10 @@ Table: Example table caption.
 |-------|----|------|
 | A     | 10 | 1.2  |
 | B     | 12 | 1.5  |
+
+# Layout notes
+
+Wrap a chapter in `::: landscape` ... `:::` for landscape pages, heading
+inside the div. Put `::: footnote` ... `:::` straight after a table for its
+footnote block. `report_styles()` lists every template style; apply one with
+`::: {custom-style="Style Name"}` or `[text]{custom-style="Style Name"}`.
