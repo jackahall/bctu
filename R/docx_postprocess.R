@@ -253,11 +253,12 @@ set_theme_colours <- function(theme, colours) {
   colours <- unlist(colours)
   unknown <- setdiff(names(colours), names(THEME_COLOUR_NAMES))
   if (length(unknown))
-    cli::cli_abort("Unknown theme colour{?s} {.val {unknown}}; use {.val {names(THEME_COLOUR_NAMES)}}.")
+    cli::cli_abort(c("Unknown theme colour{?s}: {.val {unknown}}.",
+                     "i" = "Use {.val {names(THEME_COLOUR_NAMES)}}."))
   hex <- toupper(sub("^#", "", as.character(colours)))
   bad <- !grepl("^[0-9A-F]{6}$", hex)
   if (any(bad))
-    cli::cli_abort("Theme colour{?s} {.val {names(colours)[bad]}} must be six-digit hex, not {.val {colours[bad]}}.")
+    cli::cli_abort("Theme colour{?s} {.val {names(colours)[bad]}} must be six-digit hex.")
   for (i in seq_along(hex)) {
     tag <- THEME_COLOUR_NAMES[[names(colours)[i]]]
     theme <- sub(paste0("(?s)<a:", tag, ">.*?</a:", tag, ">"),
