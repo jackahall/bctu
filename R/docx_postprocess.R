@@ -25,17 +25,26 @@ PAGE_MARGIN_TWIPS <- 2880L
 #' Applied by [trial_report()] to the file pandoc has just written. It binds
 #' the title-page headers and footers to the relationship ids pandoc chose,
 #' widens full-width images inside landscape sections to the landscape text
-#' width, keeps each caption with the start of its table, and drops the
-#' empty final section a report ends in when its last content is landscape.
+#' width, keeps each caption with the start of its table, drops the empty
+#' final section a report ends in when its last content is landscape, and
+#' sets any theme colours given.
 #'
 #' @param path Path to the docx.
+#' @param theme_colours A named list or character vector of hex colours
+#'   (`"C59A00"` or `"#C59A00"`) replacing entries of the document's theme
+#'   colour scheme: `dark1`, `light1`, `dark2`, `light2`, `accent1` to
+#'   `accent6`, `hyperlink`, `followed_hyperlink`. The bundled template ties
+#'   table borders and header shading to `accent1` (UoB gold), captions and
+#'   secondary text to `dark2` (dark grey) and links to `hyperlink` (UoB
+#'   blue), so a report can be recoloured here, or afterwards in Word's
+#'   theme colours, without touching any style.
 #' @return `path`, invisibly.
 #' @examples
 #' \dontrun{
 #' repair_report_docx("report.docx")
 #' }
 #' @export
-repair_report_docx <- function(path) {
+repair_report_docx <- function(path, theme_colours = NULL) {
   if (!file.exists(path))
     cli::cli_abort("No file to repair at {.file {path}}.")
   path <- normalizePath(path, winslash = "/")
@@ -56,6 +65,12 @@ repair_report_docx <- function(path) {
   document <- keep_table_rows_together(document)
   document <- drop_trailing_empty_section(document)
   writeChar(document, doc_path, eos = NULL, useBytes = TRUE)
+
+  if (length(theme_colours)) {
+    theme_path <- file.path(work, "word", "theme", "theme1.xml")
+    theme <- readChar(theme_path, file.size(theme_path), useBytes = TRUE)
+    writeChar(set_theme_colours(theme, theme_colours), theme_path, eos = NULL, useBytes = TRUE)
+  }
 
   old <- setwd(work)
   on.exit(setwd(old), add = TRUE)
@@ -217,4 +232,37 @@ drop_trailing_empty_section <- function(document) {
   body_end <- body_sect + attr(body_sect, "match.length") - 1L
   paste0(substring(document, 1L, start - 1L), between, section, "\n  </w:body>",
          substring(document, body_end + 1L, nchar(document)))
+}
+
+# ---- Theme colours ----
+
+THEME_COLOUR_NAMES <- c(
+  dark1 = "dk1", light1 = "lt1", dark2 = "dk2", light2 = "lt2",
+  accent1 = "accent1", accent2 = "accent2", accent3 = "accent3",
+  accent4 = "accent4", accent5 = "accent5", accent6 = "accent6",
+  hyperlink = "hlink", followed_hyperlink = "folHlink"
+)
+
+#' Replace entries of a theme's colour scheme
+#'
+#' @param theme The theme1.xml text.
+#' @param colours Named hex colours, see [repair_report_docx()].
+#' @return The theme1.xml text with those entries replaced.
+#' @keywords internal
+set_theme_colours <- function(theme, colours) {
+  colours <- unlist(colours)
+  unknown <- setdiff(names(colours), names(THEME_COLOUR_NAMES))
+  if (length(unknown))
+    cli::cli_abort("Unknown theme colour{?s} {.val {unknown}}; use {.val {names(THEME_COLOUR_NAMES)}}.")
+  hex <- toupper(sub("^#", "", as.character(colours)))
+  bad <- !grepl("^[0-9A-F]{6}$", hex)
+  if (any(bad))
+    cli::cli_abort("Theme colour{?s} {.val {names(colours)[bad]}} must be six-digit hex, not {.val {colours[bad]}}.")
+  for (i in seq_along(hex)) {
+    tag <- THEME_COLOUR_NAMES[[names(colours)[i]]]
+    theme <- sub(paste0("(?s)<a:", tag, ">.*?</a:", tag, ">"),
+                 paste0("<a:", tag, "><a:srgbClr val=\"", hex[i], "\"/></a:", tag, ">"),
+                 theme, perl = TRUE)
+  }
+  theme
 }

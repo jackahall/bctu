@@ -161,3 +161,13 @@ test_that("an empty final section after a landscape break is dropped", {
   content_tail <- paste0("<w:body>", landscape, "<w:p><w:r><w:t>after</w:t></w:r></w:p>", portrait, "</w:body>")
   expect_equal(drop_trailing_empty_section(content_tail), content_tail)
 })
+
+test_that("theme colours are replaced by name and validated", {
+  theme <- "<a:clrScheme name=\"x\"><a:dk2><a:srgbClr val=\"111111\"/></a:dk2><a:accent1><a:srgbClr val=\"222222\"/></a:accent1><a:hlink><a:srgbClr val=\"333333\"/></a:hlink></a:clrScheme>"
+  out <- set_theme_colours(theme, list(accent1 = "#abcdef", hyperlink = "000000"))
+  expect_true(grepl("<a:accent1><a:srgbClr val=\"ABCDEF\"/></a:accent1>", out, fixed = TRUE))
+  expect_true(grepl("<a:hlink><a:srgbClr val=\"000000\"/></a:hlink>", out, fixed = TRUE))
+  expect_true(grepl("111111", out, fixed = TRUE))
+  expect_error(set_theme_colours(theme, list(accent9 = "000000")), "Unknown theme colour")
+  expect_error(set_theme_colours(theme, list(accent1 = "red")), "six-digit hex")
+})

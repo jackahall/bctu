@@ -486,6 +486,20 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #'   bctu::trial_report: default
 #' }
 #'
+#' `theme-colours` in the YAML header recolours the document's theme, and
+#' with it every table border, header shading, caption and link that the
+#' template ties to a theme colour; each entry is a hex colour under one of
+#' `dark1`, `light1`, `dark2`, `light2`, `accent1` to `accent6`,
+#' `hyperlink`, `followed_hyperlink` (see [repair_report_docx()]). The
+#' defaults are the UoB colours, and the same colours can be changed later
+#' in Word under Design, Colors.
+#'
+#' \preformatted{
+#' theme-colours:
+#'   accent1: "C59A00"
+#'   hyperlink: "0057BF"
+#' }
+#'
 #' The title-page filter reads these YAML keys (pandoc's own `title`,
 #' `author` and `date` are not used):
 #' * `trial-short-name`, `trial-long-name`, `trial-registration`,
@@ -530,7 +544,7 @@ trial_report <- function(...) {
     dots$pandoc_args <- c(defaults$pandoc_args, dots$pandoc_args)
   format <- do.call(rmarkdown::word_document, utils::modifyList(defaults, dots))
   format$post_processor <- function(metadata, input_file, output_file, clean, verbose) {
-    repair_report_docx(output_file)
+    repair_report_docx(output_file, theme_colours = metadata[["theme-colours"]])
     output_file
   }
   format

@@ -2,6 +2,7 @@
 
 ## Changes
 
+* The template's table borders and header shading, caption text and links are tied to the document theme colours (a BCTU scheme with UoB gold as accent 1), so a report recolours from Word's Design, Colors. New `trial_report` YAML key `theme-colours` sets those colours at render time; `repair_report_docx()` gains `theme_colours`.
 * A figure's image sits in its caption paragraph, which keeps its lines together, so a caption is never left at the foot of a page with the image on the next.
 * A report whose last content is landscape no longer ends with a blank portrait page.
 * `render_table()` turns `indent()` levels into label columns: a label is merged rightwards over the deeper label columns and a deeper label sits in its own column beneath it, in place of non-breaking-space indentation. `grid_table()` gains `levels` for the same layout.

@@ -4,10 +4,19 @@
 \alias{repair_report_docx}
 \title{Repair a rendered trial report docx}
 \usage{
-repair_report_docx(path)
+repair_report_docx(path, theme_colours = NULL)
 }
 \arguments{
 \item{path}{Path to the docx.}
+
+\item{theme_colours}{A named list or character vector of hex colours
+(\code{"C59A00"} or \code{"#C59A00"}) replacing entries of the document's theme
+colour scheme: \code{dark1}, \code{light1}, \code{dark2}, \code{light2}, \code{accent1} to
+\code{accent6}, \code{hyperlink}, \code{followed_hyperlink}. The bundled template ties
+table borders and header shading to \code{accent1} (UoB gold), captions and
+secondary text to \code{dark2} (dark grey) and links to \code{hyperlink} (UoB
+blue), so a report can be recoloured here, or afterwards in Word's
+theme colours, without touching any style.}
 }
 \value{
 \code{path}, invisibly.
@@ -16,8 +25,9 @@ repair_report_docx(path)
 Applied by \code{\link[=trial_report]{trial_report()}} to the file pandoc has just written. It binds
 the title-page headers and footers to the relationship ids pandoc chose,
 widens full-width images inside landscape sections to the landscape text
-width, keeps each caption with the start of its table, and drops the
-empty final section a report ends in when its last content is landscape.
+width, keeps each caption with the start of its table, drops the empty
+final section a report ends in when its last content is landscape, and
+sets any theme colours given.
 }
 \examples{
 \dontrun{

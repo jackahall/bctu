@@ -32,6 +32,20 @@ output:
   bctu::trial_report: default
 }
 
+\code{theme-colours} in the YAML header recolours the document's theme, and
+with it every table border, header shading, caption and link that the
+template ties to a theme colour; each entry is a hex colour under one of
+\code{dark1}, \code{light1}, \code{dark2}, \code{light2}, \code{accent1} to \code{accent6},
+\code{hyperlink}, \code{followed_hyperlink} (see \code{\link[=repair_report_docx]{repair_report_docx()}}). The
+defaults are the UoB colours, and the same colours can be changed later
+in Word under Design, Colors.
+
+\preformatted{
+theme-colours:
+  accent1: "C59A00"
+  hyperlink: "0057BF"
+}
+
 The title-page filter reads these YAML keys (pandoc's own \code{title},
 \code{author} and \code{date} are not used):
 \itemize{
