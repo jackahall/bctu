@@ -21,7 +21,7 @@
 #' missing value in exports: Stata `.a` and SAS `.A`.
 #'
 #' @param ... One or more `CODE ~ "tag"` formulas.
-#' @return A `bctu_special_missing` mapping (a data frame of `code` and `tag`).
+#' @return `special_missing()`: A `bctu_special_missing` mapping (a data frame of `code` and `tag`).
 #' @examples
 #' special_missing(UNK ~ "a", OTH ~ "b", NASK ~ "c")
 #' @export
@@ -62,7 +62,7 @@ print.bctu_special_missing <- function(x, ...) {
   invisible(x)
 }
 
-#' Apply a missing-data code mapping to a character data frame
+#' @describeIn special_missing Apply a missing-data code mapping to a character data frame
 #'
 #' For each column, cells whose (trimmed) value is a declared code are removed and
 #' the remaining values are type-converted exactly as a CSV reader would, so the
@@ -70,12 +70,11 @@ print.bctu_special_missing <- function(x, ...) {
 #' tagged NAs; non-numeric columns keep the code text (character) or drop it to a
 #' plain NA (date fields), with a warning, because special missing values are a
 #' numeric-only concept.
-#'
 #' @param records A data frame, read with every column as character.
 #' @param mapping A [special_missing()] mapping, or `NULL` (returns `records`
 #'   type-converted).
 #' @param verbose Verbosity.
-#' @return `records` with natural column types and tagged-NA special missings,
+#' @return `apply_special_missing()`: `records` with natural column types and tagged-NA special missings,
 #'   carrying the mapping as `attr(., "bctu_special_missing")`.
 #' @export
 apply_special_missing <- function(records, mapping = NULL, verbose = 1L) {
@@ -119,7 +118,7 @@ apply_special_missing <- function(records, mapping = NULL, verbose = 1L) {
   records
 }
 
-#' @keywords internal
+#' @noRd
 convert_like_csv <- function(x) {
   if (requireNamespace("readr", quietly = TRUE))
     suppressWarnings(readr::parse_guess(x))
@@ -128,13 +127,13 @@ convert_like_csv <- function(x) {
 }
 
 # --- export helpers ---------------------------------------------------------
-#' @keywords internal
+#' @noRd
 has_tagged_na <- function(v) {
   is.double(v) && requireNamespace("haven", quietly = TRUE) && any(haven::is_tagged_na(v))
 }
 
 #' Restore original codes into tagged-NA cells for a readable CSV copy
-#' @keywords internal
+#' @noRd
 restore_codes_frame <- function(tbl) {
   map <- attr(tbl, "bctu_special_missing")
   if (is.null(map) || !requireNamespace("haven", quietly = TRUE)) return(tbl)
@@ -157,7 +156,7 @@ restore_codes_frame <- function(tbl) {
 }
 
 #' Re-tag tagged NAs to their uppercase form (SAS special missings)
-#' @keywords internal
+#' @noRd
 retag_upper <- function(tbl) {
   if (!requireNamespace("haven", quietly = TRUE)) return(tbl)
   for (col in names(tbl)) {
@@ -171,7 +170,7 @@ retag_upper <- function(tbl) {
 }
 
 #' Which columns carry special-missing codes?
-#' @keywords internal
+#' @noRd
 coded_columns <- function(tbl) names(tbl)[vapply(tbl, has_tagged_na, logical(1))]
 
 #' Generate a SAS import script that reads the CSV and applies special missings
@@ -179,7 +178,7 @@ coded_columns <- function(tbl) names(tbl)[vapply(tbl, has_tagged_na, logical(1))
 #' The reliable path: haven's SAS writer is unstable, so the snapshot always ships
 #' a `.sas` script that PROC IMPORTs the readable CSV (which holds the original
 #' codes) and recodes each coded column to native SAS special missing values.
-#' @keywords internal
+#' @noRd
 sas_import_script <- function(tbl, csv_name, dataset) {
   map   <- attr(tbl, "bctu_special_missing")
   coded <- coded_columns(tbl)

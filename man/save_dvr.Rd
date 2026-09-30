@@ -2,13 +2,72 @@
 % Please edit documentation in R/checks.R
 \name{save_dvr}
 \alias{save_dvr}
-\title{Build a Data Validation Report (DVR) from a DVP function and a snapshot}
+\alias{write_findings_readable}
+\alias{write_findings_workbook}
+\alias{write_report_set}
+\alias{write_report_summary}
+\alias{save_cdi}
+\alias{run_data_report}
+\title{Data validation (DVR) and critical data (CDI) reports}
 \usage{
 save_dvr(
   dvp,
   after,
   before = "penultimate",
   paths = getwd(),
+  id_col = "record_id",
+  split_by = NULL,
+  version = NULL,
+  operator = NULL,
+  check_info = NULL,
+  query_column = TRUE,
+  status_output = c("folders", "column"),
+  include_resolved = TRUE,
+  write_readable = FALSE,
+  verbose = 2L
+)
+
+write_findings_readable(sheets, dir)
+
+write_findings_workbook(sheets, path, index = NULL)
+
+write_report_set(
+  sheets,
+  snapshot,
+  dir,
+  base_name,
+  id_col = "record_id",
+  split_by = NULL,
+  write_readable = FALSE,
+  before_snapshot = NULL,
+  check_info = NULL
+)
+
+write_report_summary(manifest, sheets, labels = NULL, path)
+
+save_cdi(
+  dvp,
+  after,
+  before = "penultimate",
+  paths = getwd(),
+  id_col = "record_id",
+  split_by = NULL,
+  version = NULL,
+  operator = NULL,
+  check_info = NULL,
+  query_column = TRUE,
+  status_output = c("folders", "column"),
+  include_resolved = TRUE,
+  write_readable = FALSE,
+  verbose = 2L
+)
+
+run_data_report(
+  dvp,
+  after,
+  before = "penultimate",
+  paths = getwd(),
+  kind = c("dvr", "cdi"),
   id_col = "record_id",
   split_by = NULL,
   version = NULL,
@@ -39,29 +98,18 @@ resolve it from the store, or \code{NULL} for no comparison.}
 \item{paths}{One or more directories to receive the report (the report is
 written to each). Defaults to the working directory.}
 
-\item{id_col}{Record-id column used to map findings to groups. Default
-\code{"record_id"}.}
+\item{id_col}{Record-id column used to map findings to groups.}
 
-\item{split_by}{Columns in the data to split the report by, outermost
-first; when \code{NULL} (default) no split is written. One column writes a
-folder and workbook per site; \code{c("country", "site")} writes a folder and
-workbook per country, and a folder and workbook per site inside it.}
+\item{split_by}{Grouping columns, outermost first; \code{NULL} (default) writes
+the overall workbook only.}
 
 \item{version}{Optional DVP version string, recorded and added to file names.}
 
 \item{operator}{Person issuing the report (recorded); default the OS user.}
 
-\item{check_info}{Optional data frame describing the checks in DM-facing
-language: columns \code{check} (matching the names the DVP returns) and \code{query}
-(the text a data manager acts on), plus optional \code{section} (free text) and
-\code{critical} (logical). When given, a \code{checks_index} sheet leads every
-workbook (overall and per-site), \code{checks_index.csv}/\code{.txt} are written
-alongside the findings in every output directory, and each check's query,
-section and criticality are recorded in the manifest. The index lists
-every check in the table, including all-clear checks with no findings.
-When \code{NULL}, the DVP function may supply the same table itself via
-\code{attr(findings, "check_info")} on the list it returns; an explicit
-\code{check_info} argument wins over the attribute.}
+\item{check_info}{Optional validated check-info table; when given, the
+checks index (sheet, CSV and TXT) is written with this set and every
+per-group output, so query text always accompanies the findings.}
 
 \item{query_column}{Prepend each check's query text as the first column of
 its finding rows (so the text travels with a row into a data manager's
@@ -89,17 +137,63 @@ shows the BEFORE snapshot's data values, stale against the current
 extract; set \code{FALSE} to leave resolved rows out of the written files.}
 
 \item{write_readable}{Also write per-check CSV/TXT copies of the findings?
-Default \code{FALSE}: the delivered record is the workbook (one worksheet per
-check), and \code{openxlsx} is required up front. The checks index and the YAML
-manifest are always written.}
+Default \code{FALSE}: the workbook is the delivered record.}
 
 \item{verbose}{Verbosity.}
+
+\item{sheets}{The named list of findings frames, carrying \code{status} when
+compared.}
+
+\item{dir}{Directory to write this set into.}
+
+\item{path}{File to write.}
+
+\item{index}{Optional check-info table written as a leading \code{checks_index}
+worksheet (query text catalogue; no counts, so it is identical between a
+full and an update set).}
+
+\item{snapshot}{The snapshot the findings came from (for group lookup).}
+
+\item{base_name}{File stem for the workbooks.}
+
+\item{before_snapshot}{Optional earlier snapshot, unioned with \code{snapshot}
+for group lookup (see \code{\link[=resolve_finding_sites]{resolve_finding_sites()}}).}
+
+\item{manifest}{The run's manifest list (see \code{\link[=run_data_report]{run_data_report()}}).}
+
+\item{labels}{Group-label matrices for the non-empty sheets (see
+\code{\link[=finding_group_labels]{finding_group_labels()}}), or \code{NULL} when the report is not split.}
+
+\item{kind}{\code{"dvr"} or \code{"cdi"}.}
 }
 \value{
-Invisibly, a list with the report id, directories written, sheets,
+\code{save_dvr()}: \code{save_dvr()}: Invisibly, a list with the report id, directories written, sheets,
 and per-check counts.
+
+\code{write_findings_readable()}: Invisibly, the directory.
+
+\code{write_findings_workbook()}: Invisibly, the path (or \code{NULL} if \code{openxlsx} is unavailable or there
+is nothing to write).
+
+\code{write_report_set()}: Invisibly, the directory.
+
+\code{write_report_summary()}: Invisibly, the lines written.
+
+\code{save_cdi()}: Invisibly, a list with the report id, directories written, sheets,
+and per-check counts.
+
+\code{run_data_report()}: Invisibly, a list describing the written report.
 }
 \description{
+\code{save_dvr()} and \code{save_cdi()} run a DVP on a snapshot, compare the findings
+with the previous snapshot by default, and write the workbooks, readable
+files and summary that make up a Data Validation Report or Critical Data
+Items report. The lower-level writers are exported for custom report sets.
+}
+\section{Functions}{
+\itemize{
+\item \code{save_dvr()}: Data validation (DVR) and critical data (CDI) reports
+
 Runs \code{dvp} on the \code{after} snapshot and writes, under every directory in
 \code{paths}, the house layout \verb{<path>/<after snapshot id>/v<version>/} (a folder
 per data state, then a folder per controlled document version; without a
@@ -117,10 +211,61 @@ or a \code{status} column plus an \verb{update/} set. Resolved findings show the
 \code{include_resolved = TRUE}. The trial name is
 taken from the snapshot itself (see \code{\link[=report_trial_name]{report_trial_name()}}); nothing about the
 trial has to be passed in.
-}
+
+\item \code{write_findings_readable()}: Write each check's findings as a readable CSV and plain-text copy
+
+One pair of files per check, named by the check. Gives a fully testable,
+Excel-free record of every finding. Names that sanitise to the same file
+stem (e.g. \code{"a/b"} and \code{"a b"} both sanitise to \code{"a_b"}) are de-duplicated
+with a trailing underscore, the same way the workbook sheet names are.
+
+\item \code{write_findings_workbook()}: Write a set of checks to one Excel workbook, one worksheet per check
+
+A convenience only: the CSV/TXT copies carry the same content, so the DVP
+logic is fully testable without Excel. Uses \code{openxlsx} if installed; if not,
+warns and does nothing. Worksheet names are the check names, trimmed to
+Excel's 31-character limit (de-duplicated if trimming collides).
+
+\item \code{write_report_set()}: Write one report set: an overall workbook plus (optionally) a group split
+
+The delivered record is one Excel workbook per set: an overall workbook of
+all findings (one worksheet per non-empty check), plus a workbook per group
+under \verb{sites/} when \code{split_by} is given, so a centre receives only its own
+queries alongside the overall set. With more than one grouping column the
+folders nest, outermost column first, and every level gets its own workbook:
+\code{split_by = c("country", "site")} writes a folder per country holding that
+country's workbook, and inside it a folder and workbook per site.
+Per-check CSV/TXT copies are written only when \code{write_readable} is \code{TRUE}.
+Groups are resolved from \code{snapshot}, and from \code{before_snapshot}
+too when given, so a \code{resolved} finding whose record was removed from
+\code{snapshot} is still grouped correctly. A \code{cli_warn} is raised per check that
+has findings with no resolvable group.
+
+\item \code{write_report_summary()}: Write the readable summary of a DVR/CDI run
+
+A markdown companion to the YAML manifest, laid out for reading in a
+meeting: the run's identity, a table of findings per check, and, when the
+report is split, a table of findings per group at every level (each country,
+then each site within it). Counts are of finding rows; a compared report
+shows current (new plus unchanged), new, unchanged and resolved.
+
+\item \code{save_cdi()}: Build a Critical Data Items (CDI) report from a DVP function and a snapshot
+
+Identical machinery to \code{\link[=save_dvr]{save_dvr()}} with its own label, including the
+default comparison against the previous snapshot.
+
+\item \code{run_data_report()}: Shared engine behind \code{\link[=save_dvr]{save_dvr()}} and \code{\link[=save_cdi]{save_cdi()}}
+
+The DVR and CDI wrappers differ only in their \code{kind} label.
+
+}}
 \examples{
 \dontrun{
 dvp <- function(data) list(weight_range = data$records[data$records$weight_kg > 300, ])
 save_dvr(dvp, after = load_snapshot("latest"))
+}
+\dontrun{
+dvp <- function(data) list(weight_range = data$records[data$records$weight_kg > 300, ])
+save_cdi(dvp, after = load_snapshot("latest"))
 }
 }

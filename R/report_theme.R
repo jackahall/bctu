@@ -9,14 +9,12 @@
 #                                                                              #
 ################################################################################
 
-#' Shared ggplot theme for BCTU trial reports
+#' @describeIn uob_palettes Shared ggplot theme for BCTU trial reports
 #'
 #' The figure theme used across BCTU Word trial reports: `theme_bw` base,
 #' white panel and strips, minor grid removed, bold titles, legend below.
-#'
 #' @param base_size Base font size.
-#' @returns A ggplot2 theme object.
-#' @seealso [scale_color_uob()], [fig_portrait()], [render_table()].
+#' @return `theme_bctu_report()`: A ggplot2 theme object.
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +

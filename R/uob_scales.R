@@ -12,9 +12,12 @@
 
 # ---- Palettes ----
 
-#' University of Birmingham colour palettes
+#' University of Birmingham colours and ggplot2 styling
 #'
-#' Palettes from the UoB secondary brand palette, the one the brand
+#' The University of Birmingham secondary colours as palettes, ggplot2 colour
+#' and fill scales, and the shared figure theme for trial reports.
+#'
+#' `uob_palettes` holds the palettes from the UoB secondary brand palette, the one the brand
 #' guidelines designate for data representation. Each hue has a *deep*
 #' variant (use with white text) and a *standard* variant (block fills
 #' only). Tints at 70, 50, 30 and 15 percent come from [uob_tint()].
@@ -43,14 +46,13 @@ uob_palettes$cool        <- uob_palettes$deep[c("blue", "turquoise", "green", "p
 uob_palettes$warm        <- uob_palettes$deep[c("red", "orange", "pink")]
 uob_palettes$neutral     <- c("#D8D8D8", "#B1B1B1", "#8B8B8C", "#646566", "#3C3C3B")
 
-#' Tint a colour toward white
+#' @describeIn uob_palettes Tint a colour toward white
 #'
 #' UoB guidelines define tints at 70, 50, 30 and 15 percent. `pct` is the
 #' proportion of the source colour retained.
-#'
 #' @param colour Hex or named colour(s).
 #' @param pct Numeric in \[0, 1\].
-#' @returns Hex colour vector; when both `colour` and `pct` have length
+#' @return `uob_tint()`: Hex colour vector; when both `colour` and `pct` have length
 #'   greater than one, a character matrix with one column per `pct`.
 #' @examples
 #' uob_tint(uob_palettes$deep[["blue"]], c(0.7, 0.3))
@@ -65,16 +67,15 @@ uob_tint <- function(colour, pct) {
   }, character(length(colour)))
 }
 
-#' UoB palette generator, ggsci style
+#' @describeIn uob_palettes UoB palette generator, ggsci style
 #'
 #' Returns a function that takes the number of colours needed and gives that
 #' many UoB colours. Asking for more colours than the palette holds
 #' interpolates between them with [grDevices::colorRampPalette()].
-#'
 #' @param palette Name of a palette in [uob_palettes].
 #' @param alpha Opacity in (0, 1].
 #' @param reverse Reverse the palette.
-#' @returns A function `function(n)` returning `n` hex colours.
+#' @return `pal_uob()`: A function `function(n)` returning `n` hex colours.
 #' @examples
 #' pal_uob()(3)
 #' pal_uob("deep", alpha = 0.7)(3)
@@ -99,11 +100,9 @@ pal_uob <- function(palette = "categorical", alpha = 1, reverse = FALSE) {
 
 # ---- Scales ----
 
-#' UoB discrete ggplot2 scales
-#'
-#' @inheritParams pal_uob
+#' @describeIn uob_palettes UoB discrete ggplot2 scales
 #' @param ... Passed to [ggplot2::discrete_scale()].
-#' @returns A ggplot2 scale.
+#' @return `scale_color_uob()`: A ggplot2 scale.
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   ggplot2::ggplot(mtcars, ggplot2::aes(factor(cyl), mpg, fill = factor(cyl))) +
@@ -116,23 +115,21 @@ scale_color_uob <- function(palette = "categorical", alpha = 1, reverse = FALSE,
   ggplot2::discrete_scale("colour", palette = pal_uob(palette, alpha, reverse), ...)
 }
 
-#' @rdname scale_color_uob
+#' @rdname uob_palettes
 #' @export
 scale_colour_uob <- scale_color_uob
 
-#' @rdname scale_color_uob
+#' @describeIn uob_palettes scale_fill_uob
 #' @export
 scale_fill_uob <- function(palette = "categorical", alpha = 1, reverse = FALSE, ...) {
   require_ggplot2()
   ggplot2::discrete_scale("fill", palette = pal_uob(palette, alpha, reverse), ...)
 }
 
-#' UoB continuous ggplot2 scales
-#'
-#' @inheritParams pal_uob
+#' @describeIn uob_palettes UoB continuous ggplot2 scales
 #' @param ... Passed to [ggplot2::scale_color_gradientn()] or
 #'   [ggplot2::scale_fill_gradientn()].
-#' @returns A ggplot2 scale.
+#' @return `scale_color_uob_c()`: A ggplot2 scale.
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg, colour = hp)) +
@@ -145,11 +142,11 @@ scale_color_uob_c <- function(palette = "mono_blue", alpha = 1, reverse = FALSE,
   ggplot2::scale_color_gradientn(colours = pal_uob(palette, alpha, reverse)(256L), ...)
 }
 
-#' @rdname scale_color_uob_c
+#' @rdname uob_palettes
 #' @export
 scale_colour_uob_c <- scale_color_uob_c
 
-#' @rdname scale_color_uob_c
+#' @describeIn uob_palettes scale_fill_uob_c
 #' @export
 scale_fill_uob_c <- function(palette = "mono_blue", alpha = 1, reverse = FALSE, ...) {
   require_ggplot2()
@@ -158,11 +155,10 @@ scale_fill_uob_c <- function(palette = "mono_blue", alpha = 1, reverse = FALSE, 
 
 # ---- Preview ----
 
-#' Preview UoB palettes
-#'
+#' @describeIn uob_palettes Preview UoB palettes
 #' @param palettes Palettes to show. Default: all.
 #' @param n Number of colours per row.
-#' @returns Invisible `NULL`.
+#' @return `show_uob_palettes()`: Invisible `NULL`.
 #' @examples
 #' show_uob_palettes(c("deep", "standard"))
 #' @export
@@ -181,7 +177,7 @@ show_uob_palettes <- function(palettes = names(uob_palettes), n = 10L) {
 
 #' Stop with an install instruction when ggplot2 is missing
 #' @returns Nothing, called for its error.
-#' @keywords internal
+#' @noRd
 require_ggplot2 <- function() {
   if (!requireNamespace("ggplot2", quietly = TRUE))
     cli::cli_abort(c("Package {.pkg ggplot2} is needed for the bctu ggplot2 scales and theme.",

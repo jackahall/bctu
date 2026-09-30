@@ -1,3 +1,10 @@
+# bctu 0.25.0
+
+## Changes
+
+* REDCap server presets restored: `datasource_redcap_bctu()`, `datasource_redcap_itm()` and the new `datasource_redcap_annex()` fill in the API url for `datasource_redcap()`.
+* Documentation regrouped into topic pages (snapshots, data sources, credentials, checks and reports, logs, report tables, trial report, UoB colours, REDCap and SQL helpers, setup); internal helpers no longer have help pages.
+
 # bctu 0.24.2
 
 ## Changes

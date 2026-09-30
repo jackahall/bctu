@@ -20,7 +20,7 @@ manifest_filename     <- "manifest.yml"
 snapshot_schema       <- "bctu-snapshot/1"
 
 # --- in-memory snapshot object ---------------------------------------------
-#' @keywords internal
+#' @noRd
 as_snapshot <- function(tables, source, name) {
   structure(tables,
             class = c("bctu_snapshot", "list"),
@@ -30,10 +30,10 @@ as_snapshot <- function(tables, source, name) {
 }
 
 # --- git provenance: the audit trail (metadata only; never fails a snapshot) ---
-#' @keywords internal
+#' @noRd
 git_available <- function() nzchar(Sys.which("git"))
 
-#' @keywords internal
+#' @noRd
 git_run <- function(root, args) {
   # shQuote every argument: a commit message (or path) can contain spaces, which
   # system2 would otherwise split into separate arguments.
@@ -44,24 +44,24 @@ git_run <- function(root, args) {
   list(ok = is.null(st) || identical(as.integer(st), 0L), out = res)
 }
 
-#' @keywords internal
+#' @noRd
 git_root <- function(path) {
   r <- git_run(path, c("rev-parse", "--show-toplevel"))
   if (r$ok && length(r$out)) r$out[1L] else NA_character_
 }
 
-#' @keywords internal
+#' @noRd
 git_head <- function(root) {
   r <- git_run(root, c("rev-parse", "HEAD"))
   if (r$ok && length(r$out)) r$out[1L] else NA_character_
 }
 
-#' @keywords internal
+#' @noRd
 git_dirty <- function(root) {
   r <- git_run(root, c("status", "--porcelain"))
   isTRUE(r$ok) && any(nzchar(r$out))
 }
-#' @keywords internal
+#' @noRd
 git_tracked <- function(root, path) {
   git_run(root, c("ls-files", "--error-unmatch", "--", relative_to(path, root)))$ok
 }
@@ -71,7 +71,7 @@ git_tracked <- function(root, path) {
 #' Git history is the audit trail: every saved snapshot commits its manifest. An
 #' annotated `snap/<tag>` tag is added only when the extraction carries an explicit
 #' `tag` (routine snapshots are not tagged, to avoid a tag per snapshot).
-#' @keywords internal
+#' @noRd
 commit_snapshot_metadata <- function(root, meta_files, id, tag = NULL, verbose = 1L) {
   rels <- vapply(meta_files, function(f) relative_to(f, root), character(1))
   if (!git_run(root, c("add", "--", rels))$ok) {
@@ -112,7 +112,7 @@ commit_snapshot_metadata <- function(root, meta_files, id, tag = NULL, verbose =
 #' destroyed: it stages the metadata change (the manifest's removal, plus the
 #' retained `deletion-note.yml` when retiring) and commits it with the id, mode
 #' and reason in the message. Never fails the deletion: a failed commit warns.
-#' @keywords internal
+#' @noRd
 commit_snapshot_deletion <- function(root, rels, id, reason, mode, verbose = 1L) {
   git_run(root, c("add", "-A", "--", rels))
   msg <- sprintf("delete snapshot %s (%s): %s", id, mode, reason)
@@ -135,7 +135,7 @@ print.bctu_snapshot <- function(x, ...) {
   invisible(x)
 }
 
-#' A lightweight provenance checkpoint
+#' @describeIn snapshot_id A lightweight provenance checkpoint
 #'
 #' Returns the stamp (UTC time, R and bctu versions, user, host) and, when a
 #' run log is open, also writes it into the log's transcript and record. In an
@@ -144,7 +144,7 @@ print.bctu_snapshot <- function(x, ...) {
 #' laziest route into a recorded session is a single `checkpoint()`. In
 #' non-interactive use with no log open it is a pure stamp with no side
 #' effects, as always.
-#' @return The stamp, a list: `created_utc`, `r_version`, `bctu_version`,
+#' @return `checkpoint()`: The stamp, a list: `created_utc`, `r_version`, `bctu_version`,
 #'   `user`, `host`.
 #' @export
 checkpoint <- function() {
@@ -159,8 +159,19 @@ checkpoint <- function() {
 }
 
 # --- take + save ------------------------------------------------------------
-#' Fetch a source and save it as an immutable snapshot
-#' @param source A [datasource].
+#' Snapshots: take, save, load, verify, list and delete
+#'
+#' A snapshot is an immutable, timestamped copy of a data source's tables,
+#' saved with a manifest (SHA-256 per table) and recorded in the audit ledger.
+#' `take_snapshot()` is the one call most users need: it fetches the source and
+#' saves the result. The other functions cover each step and the store's
+#' housekeeping.
+#' @name take_snapshot
+NULL
+
+#' @describeIn take_snapshot Snapshots: take, save, load, verify, list and delete
+#' @order 1
+#' @param source A datasource (see [datasource_redcap()]).
 #' @param store Snapshot store directory; default resolved from the project marker.
 #' @param formats Payload formats to write; default `c("rds","csv")`. Other
 #'   values (`"dta"`, `"sas7bdat"`, `"xpt"`, `"sas"`) are written by
@@ -171,7 +182,7 @@ checkpoint <- function() {
 #' @param labels Optional named list of extra free-text metadata to record.
 #' @param git Git provenance mode; see [save_snapshot()].
 #' @param verbose Verbosity.
-#' @return The saved snapshot, with its `id` attached, invisibly.
+#' @return `take_snapshot()`: `take_snapshot()`: The saved snapshot, with its `id` attached, invisibly.
 #' @examples
 #' \dontrun{
 #' ds <- datasource_example()
@@ -186,7 +197,7 @@ take_snapshot <- function(source, store = snapshot_store(create = TRUE),
                 labels = labels, git = git, verbose = verbose)
 }
 
-#' Save an in-memory snapshot to the store
+#' @describeIn take_snapshot Save an in-memory snapshot to the store
 #' @param x A `bctu_snapshot`.
 #' @param store Snapshot store directory.
 #' @param formats Payload formats: any of `"rds"`, `"csv"`, `"dta"`,
@@ -200,7 +211,7 @@ take_snapshot <- function(source, store = snapshot_store(create = TRUE),
 #'   entirely. Never fails a snapshot: if git is unavailable the commit is skipped
 #'   (with a warning when the store is not in a repository).
 #' @param verbose Verbosity.
-#' @return `x` with `id` attached, invisibly.
+#' @return `save_snapshot()`: `x` with `id` attached, invisibly.
 #' @examples
 #' \dontrun{
 #' ds <- datasource_example()
@@ -293,7 +304,7 @@ save_snapshot <- function(x, store = snapshot_store(create = TRUE),
   invisible(x)
 }
 
-#' @keywords internal
+#' @noRd
 validate_table_names <- function(nms) {
   bad <- nms[!nzchar(nms) | grepl("(^[.]{1,2}$)|[/\\\\]|[.][.]", nms) |
                grepl("[[:cntrl:]]", nms)]
@@ -303,7 +314,7 @@ validate_table_names <- function(nms) {
   invisible(nms)
 }
 
-#' @keywords internal
+#' @noRd
 write_snapshot_payload <- function(tbl, tdir, stem, formats, base) {
   files <- list()
   if ("rds" %in% formats) {
@@ -342,7 +353,7 @@ write_snapshot_payload <- function(tbl, tdir, stem, formats, base) {
 }
 
 #' Best-effort haven writer (haven's SAS writers are unstable; never abort a save)
-#' @keywords internal
+#' @noRd
 haven_write <- function(kind, tbl, path) {
   if (!requireNamespace("haven", quietly = TRUE)) {
     cli::cli_warn("Package {.pkg haven} not installed; skipping the {.val {kind}} export.")
@@ -359,23 +370,23 @@ haven_write <- function(kind, tbl, path) {
   ok
 }
 
-#' @keywords internal
+#' @noRd
 make_sas_name <- function(stem) {
   nm <- gsub("[^A-Za-z0-9_]", "_", stem)
   if (nchar(nm) > 32L) nm <- substr(nm, 1L, 32L)
   nm
 }
 
-#' @keywords internal
+#' @noRd
 file_entry <- function(path, base) {
   list(path = relative_to(path, base),
        size_bytes = as.integer(file.info(path)$size),
        sha256 = sha256_file(path))
 }
-#' @keywords internal
+#' @noRd
 relative_to <- function(path, base) sub(paste0("^", regex_escape(normalizePath(base, winslash = "/")), "/?"),
                                  "", normalizePath(path, winslash = "/"))
-#' @keywords internal
+#' @noRd
 regex_escape <- function(x) gsub("([.\\\\+*?\\[^\\]$(){}=!<>|:#-])", "\\\\\\1", x, perl = TRUE)
 
 #' Turn a study name into a filesystem-safe token for payload filenames
@@ -383,7 +394,7 @@ regex_escape <- function(x) gsub("([.\\\\+*?\\[^\\]$(){}=!<>|:#-])", "\\\\\\1", 
 #' Replaces any run of non-alphanumeric characters with a single underscore and
 #' trims leading/trailing underscores. Falls back to `"snapshot"` when nothing
 #' usable remains.
-#' @keywords internal
+#' @noRd
 sanitise_study_name <- function(name) {
   token <- if (is_string(name)) name else "snapshot"
   token <- gsub("[^A-Za-z0-9]+", "_", token)
@@ -392,7 +403,7 @@ sanitise_study_name <- function(name) {
 }
 
 # --- resolve / list ---------------------------------------------------------
-#' List snapshot ids in a store (newest last)
+#' @describeIn take_snapshot List snapshot ids in a store (newest last)
 #' @param store Snapshot store directory.
 #' @examples
 #' store <- withr::local_tempdir()
@@ -403,7 +414,7 @@ list_snapshots <- function(store = snapshot_store(verbose = 0L)) {
   sort(d[grepl(snapshot_id_regex, d)])
 }
 
-#' @keywords internal
+#' @noRd
 resolve_snapshot_which <- function(which, store) {
   ids <- list_snapshots(store)
   if (length(ids) == 0L) cli::cli_abort("No snapshots in {.file {store}}.")
@@ -424,7 +435,7 @@ resolve_snapshot_which <- function(which, store) {
 #' works the same whether or not the caller attached haven first.
 #' @param tbl A table read from a snapshot.
 #' @return `tbl`, unchanged.
-#' @keywords internal
+#' @noRd
 load_haven_for <- function(tbl) {
   if (is.data.frame(tbl) && any(vapply(tbl, inherits, logical(1), "haven_labelled")))
     if (!requireNamespace("haven", quietly = TRUE))
@@ -432,12 +443,12 @@ load_haven_for <- function(tbl) {
   tbl
 }
 
-#' Load a snapshot from the store
+#' @describeIn take_snapshot Load a snapshot from the store
 #' @param which `"latest"`, `"penultimate"`, an id, or an integer (1 = newest).
 #' @param store Snapshot store directory.
 #' @param table Optionally, return only this table.
 #' @param verbose Verbosity.
-#' @return A `bctu_snapshot` (or a single data frame if `table` is given).
+#' @return `load_snapshot()`: A `bctu_snapshot` (or a single data frame if `table` is given).
 #' @examples
 #' \dontrun{
 #' load_snapshot("latest")
@@ -470,10 +481,10 @@ load_snapshot <- function(which = "latest", store = snapshot_store(verbose = 0L)
 }
 
 # --- verify -----------------------------------------------------------------
-#' Verify a snapshot's on-disk integrity against its manifest (SHA-256)
+#' @describeIn take_snapshot Verify a snapshot's on-disk integrity against its manifest (SHA-256)
 #' @param which Snapshot selector.
 #' @param store Snapshot store directory.
-#' @return A list with `ok` (logical) and a per-file `details` data frame.
+#' @return `verify_snapshot()`: A list with `ok` (logical) and a per-file `details` data frame.
 #' @examples
 #' \dontrun{
 #' verify_snapshot("latest")
@@ -498,7 +509,7 @@ verify_snapshot <- function(which = "latest", store = snapshot_store(verbose = 0
 }
 
 # --- delete (first-class, safe, self-documenting) --------------------------
-#' Delete or retire a snapshot
+#' @describeIn take_snapshot Delete or retire a snapshot
 #'
 #' The default `mode = "retire"` moves the snapshot directory to
 #' `<store>/_deleted/<id>/`, keeping its immutable `manifest.yml` as the
@@ -517,7 +528,7 @@ verify_snapshot <- function(which = "latest", store = snapshot_store(verbose = 0
 #'   `deletion-note.yml`) as the audit record; `"off"` skips git. Never fails the
 #'   deletion.
 #' @param verbose Verbosity.
-#' @return The deleted id, invisibly.
+#' @return `delete_snapshot()`: The deleted id, invisibly.
 #' @examples
 #' \dontrun{
 #' delete_snapshot("latest", reason = "duplicate extraction")

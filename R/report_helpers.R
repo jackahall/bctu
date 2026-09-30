@@ -12,15 +12,14 @@
 
 NBSP <- "\u00a0"
 
-#' Indent table text with non-breaking spaces
+#' @describeIn render_table Indent table text with non-breaking spaces
 #'
 #' Prefixes text with four non-breaking spaces per level. Pandoc and
-#' [strwrap()] strip ordinary leading spaces, so indentation made of plain
+#' `strwrap()` strip ordinary leading spaces, so indentation made of plain
 #' spaces disappears in a rendered table; non-breaking spaces survive.
-#'
 #' @param x A character vector.
 #' @param levels Number of indentation levels (4 spaces each). Default 1.
-#' @return `x` with the indentation prefixed.
+#' @return `indent()`: `x` with the indentation prefixed.
 #' @examples
 #' indent("Male")
 #' indent("Aged 65 or over", levels = 2)
@@ -34,19 +33,18 @@ indent <- function(x, levels = 1L) {
 #' The number of [indent()] levels at the start of each label.
 #' @param x A character vector.
 #' @return An integer vector.
-#' @keywords internal
+#' @noRd
 indent_depth <- function(x) {
   lead <- attr(regexpr(paste0("^(", NBSP, ")*"), x), "match.length")
   as.integer(lead %/% 4L)
 }
 
-#' Format counts as "n/N (p%)"
-#'
+#' @describeIn render_table Format counts as "n/N (p%)"
 #' @param n Numerator counts.
 #' @param N Denominator counts. Where `N` is 0 the result is `"n/N"` with no
 #'   percentage.
 #' @param digits Decimal places for the percentage. Default 0.
-#' @return A character vector.
+#' @return `n_pct()`: A character vector.
 #' @examples
 #' n_pct(c(3, 0), c(12, 0))
 #' n_pct(5, 7, digits = 1)
@@ -58,14 +56,13 @@ n_pct <- function(n, N, digits = 0L) {
   ifelse(N == 0, paste0(n, "/", N), paste0(n, "/", N, " (", pct, "%)"))
 }
 
-#' Column widths for a grid table
+#' @describeIn render_table Column widths for a grid table
 #'
 #' Each column is as wide as its longest header or cell line (cells may hold
 #' several lines separated by `"\n"`), kept between 8 characters and the cap.
-#'
 #' @param df A data frame of character cells.
 #' @param caps Maximum width: one number for every column, or one per column.
-#' @return An integer vector of widths, one per column.
+#' @return `col_widths()`: An integer vector of widths, one per column.
 #' @examples
 #' col_widths(data.frame(Group = c("A", "B"), n = c("10", "12")), caps = 20)
 #' @export
@@ -88,7 +85,7 @@ col_widths <- function(df, caps) {
 #' @param text A single string.
 #' @param width Column width in characters.
 #' @return A character vector of lines.
-#' @keywords internal
+#' @noRd
 wrap_grid_cell <- function(text, width) {
   fields <- strsplit(text, "\n", fixed = TRUE)[[1]]
   if (!length(fields)) return("")
@@ -100,19 +97,17 @@ wrap_grid_cell <- function(text, width) {
   lines[-length(lines)]
 }
 
-#' Build a pandoc grid table from a data frame
+#' @describeIn render_table Build a pandoc grid table from a data frame
 #'
 #' Renders a data frame of character cells as a pandoc grid table. Cell text
 #' is wrapped to the column width; a `"\n"` in a cell starts a new paragraph
 #' within the cell. The header row is the column names. A column whose
 #' wrapped text has a word longer than its width is widened to fit it.
-#'
 #' The first `levels` columns form a label hierarchy. In each row the first
 #' non-empty label cell is merged rightwards over the remaining label
 #' columns, so a deeper label sits in a later column under a merged parent.
 #' The header of the hierarchy is the first column name, merged over all
 #' label columns.
-#'
 #' @param df A data frame of character cells.
 #' @param widths Column widths in characters, one per column (see
 #'   [col_widths()]).
@@ -120,7 +115,7 @@ wrap_grid_cell <- function(text, width) {
 #'   marked `TRUE` are rendered as one full-width cell holding the text of
 #'   the first column.
 #' @param levels Number of leading label columns (default 1, no hierarchy).
-#' @return A single string holding the grid table.
+#' @return `grid_table()`: A single string holding the grid table.
 #' @examples
 #' df <- data.frame(Group = c("A", "B"), n = c("10", "12"))
 #' cat(grid_table(df, widths = col_widths(df, caps = 20)))
@@ -178,7 +173,7 @@ grid_table <- function(df, widths, span_rows = NULL, levels = 1L) {
 #'   `start` and `span`.
 #' @param widths Column widths in characters.
 #' @return The widened column widths.
-#' @keywords internal
+#' @noRd
 fit_grid_widths <- function(wrapped, widths) {
   for (row in wrapped) for (seg in row) {
     need <- max(0L, nchar(seg$lines))
@@ -194,7 +189,7 @@ fit_grid_widths <- function(wrapped, widths) {
 #' @param row A list of segments, each with wrapped `lines` and a `span`.
 #' @param widths Column widths in characters.
 #' @return A character vector of content lines.
-#' @keywords internal
+#' @noRd
 grid_row_lines <- function(row, widths) {
   vapply(seq_len(max(lengths(lapply(row, `[[`, "lines")))), function(k)
     grid_content_line(lapply(row, function(seg)
@@ -202,15 +197,14 @@ grid_row_lines <- function(row, widths) {
     character(1))
 }
 
-#' A banner row for a report table
+#' @describeIn render_table A banner row for a report table
 #'
 #' A one-row data frame with the same columns as `template`, holding `text`
 #' in the first column and blanks elsewhere. [render_table()] renders such a
 #' row as a full-width bold banner when the table has indented rows.
-#'
 #' @param template A data frame whose columns the row copies.
 #' @param text The banner text.
-#' @return A one-row data frame of character columns.
+#' @return `banner_row()`: A one-row data frame of character columns.
 #' @examples
 #' tab <- data.frame(Characteristic = indent("Male"), Total = "10")
 #' rbind(banner_row(tab, "Sex"), tab)
@@ -230,7 +224,7 @@ banner_row <- function(template, text) {
 #' with bold text (`**label** ...`) is left as markup.
 #' @param x A character vector.
 #' @return `x` with leading markers escaped.
-#' @keywords internal
+#' @noRd
 escape_list_marker <- function(x) {
   vapply(x, function(s) {
     fields <- strsplit(s, "\n", fixed = TRUE)[[1]]
@@ -239,7 +233,15 @@ escape_list_marker <- function(x) {
   }, character(1), USE.NAMES = FALSE)
 }
 
-#' Render a data frame as a report table for an Rmd
+#' Tables for Rmd reports
+#'
+#' Helpers for tables written straight into an Rmd report: `render_table()`
+#' turns a data frame into a pandoc grid table for a `results = "asis"` chunk,
+#' and the other functions build its pieces.
+#' @name render_table
+NULL
+
+#' @describeIn render_table Tables for Rmd reports
 #'
 #' Converts a data frame to a pandoc grid table ready for `cat()` in a chunk
 #' with `results = "asis"`. Cells are converted to text with `NA` shown blank,
@@ -249,7 +251,7 @@ escape_list_marker <- function(x) {
 #' over the deeper label columns, and a deeper label sits in its own column
 #' beneath. Unindented rows are shown in bold, and those with no values in
 #' the other columns become full-width banner rows.
-#'
+#' @order 1
 #' @param df A data frame.
 #' @param caps Maximum column widths in characters (see [col_widths()]).
 #'   Default 44 for the first column and 20 for the rest.
@@ -263,7 +265,7 @@ escape_list_marker <- function(x) {
 #'   every column, for example the primary outcome row of an outcome table.
 #' @param bold_headings When `TRUE` (default), unindented rows of an indented
 #'   table are shown in bold. Set `FALSE` to bold only `bold_rows`.
-#' @return A single string holding the table (and caption).
+#' @return `render_table()`: `render_table()`: A single string holding the table (and caption).
 #' @examples
 #' tab <- data.frame(Characteristic = c("Sex", indent(c("Male", "Female"))),
 #'                   Total = c("", n_pct(c(6, 4), c(10, 10))))

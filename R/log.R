@@ -26,7 +26,7 @@ run_log_state <- new.env(parent = emptyenv())
 #' @param time The stamp's UTC time; default now. Passing it lets a caller use
 #'   one clock read for the stamp and for anything derived from it.
 #' @return A list: `created_utc`, `r_version`, `bctu_version`, `user`, `host`.
-#' @keywords internal
+#' @noRd
 checkpoint_stamp <- function(time = utc_now()) {
   ver <- tryCatch(as.character(utils::packageVersion("bctu")), error = function(e) NA_character_)
   list(created_utc = iso8601(time), r_version = R.version.string,
@@ -36,7 +36,7 @@ checkpoint_stamp <- function(time = utc_now()) {
 }
 
 #' Resolve the log location (explicit, or `<project dir>/log-output`)
-#' @keywords internal
+#' @noRd
 resolve_log_location <- function(location) {
   if (!is.null(location)) {
     if (!is_string(location) || !nzchar(location))
@@ -52,7 +52,7 @@ resolve_log_location <- function(location) {
 }
 
 #' Default run name: the running script's file name, else `interactive-session`
-#' @keywords internal
+#' @noRd
 default_run_name <- function() {
   args <- commandArgs(trailingOnly = FALSE)
   file_arg <- sub("^--file=", "", grep("^--file=", args, value = TRUE))
@@ -70,7 +70,7 @@ default_run_name <- function() {
 #' for those wrappers instead, so registration can be skipped gracefully
 #' (e.g. under testthat) rather than erroring.
 #' @return `TRUE` if registration would be refused.
-#' @keywords internal
+#' @noRd
 handler_frames_on_stack <- function() {
   blockers <- list(base::tryCatch, base::withCallingHandlers, base::try,
                    base::suppressWarnings, base::suppressMessages)
@@ -82,7 +82,7 @@ handler_frames_on_stack <- function() {
 }
 
 #' Snapshot identity block for the run record
-#' @keywords internal
+#' @noRd
 run_log_snapshot_ref <- function(snapshot) {
   if (is.null(snapshot)) return(NULL)
   list(id = attr(snapshot, "id") %||% "unsaved",
@@ -91,7 +91,7 @@ run_log_snapshot_ref <- function(snapshot) {
 }
 
 #' File inventory (path, size, SHA-256) for inputs and outputs
-#' @keywords internal
+#' @noRd
 run_log_file_inventory <- function(paths) {
   if (is.null(paths)) return(NULL)
   paths <- as.character(paths)
@@ -104,7 +104,7 @@ run_log_file_inventory <- function(paths) {
 }
 
 #' Atomic write of the run record YAML
-#' @keywords internal
+#' @noRd
 write_run_record <- function(record, dir) {
   tmp <- file.path(dir, "run.yml.tmp")
   yaml::write_yaml(record, tmp)
@@ -112,7 +112,15 @@ write_run_record <- function(record, dir) {
   invisible(record)
 }
 
-#' Start a run log
+#' Run logs
+#'
+#' A run log records one run of a script: its checkpoints, the snapshot it
+#' used, the files it read and wrote, and its outcome, as a YAML record plus an
+#' append-only index.
+#' @name start_log
+NULL
+
+#' @describeIn start_log Run logs
 #'
 #' Opens a recorded session: from this call until [stop_log()], everything the
 #' session prints is copied to a transcript on disc, warnings and errors are
@@ -120,12 +128,10 @@ write_run_record <- function(record, dir) {
 #' accompanies the transcript. Nothing about the console experience changes:
 #' output, messages, warnings and errors still appear exactly as before; the
 #' transcript is a copy, not a diversion.
-#'
 #' The record header is written to disc BEFORE this function returns, in
 #' status `started`, so a session that later dies still leaves the header and
 #' the transcript up to the point of death; a record that never reached
 #' `closed` is itself evidence of an interrupted run.
-#'
 #' Command echo is appended after each top-level expression completes, so a
 #' command appears in the transcript after its own output (an R limitation:
 #' there is no pre-execution hook). Warning/error/message capture depends on
@@ -138,7 +144,7 @@ write_run_record <- function(record, dir) {
 #' says so and records the transcript without condition tallies (`"none"`).
 #' Input that is not a top-level expression (e.g. `readline()` answers) and
 #' graphics are not captured.
-#'
+#' @order 1
 #' @param location Directory to hold run logs. Default: `log-output/` under
 #'   the bctu project root when a project marker is found; outside a project
 #'   it must be given explicitly.
@@ -150,7 +156,7 @@ write_run_record <- function(record, dir) {
 #' @param inputs Optional character vector of input files or directories; each
 #'   file's SHA-256 is recorded.
 #' @param verbose Verbosity; `0` suppresses the announcement line.
-#' @return Invisibly, the run id. The run directory is
+#' @return `start_log()`: `start_log()`: Invisibly, the run id. The run directory is
 #'   `<location>/<name>-<UTC time>` (suffixed `-N` on a same-second collision),
 #'   where the time equals the header checkpoint's `created_utc`.
 #' @examples
@@ -300,7 +306,7 @@ start_log <- function(location = NULL, name = NULL, snapshot = NULL,
   invisible(id)
 }
 
-#' Stop the open run log
+#' @describeIn start_log Stop the open run log
 #'
 #' Closes the recorded session: removes the capture hooks (the console was
 #' never altered, so nothing visibly changes back), finalises the YAML record
@@ -310,7 +316,7 @@ start_log <- function(location = NULL, name = NULL, snapshot = NULL,
 #' @param outputs Optional character vector of output files or directories to
 #'   inventory (path, size, SHA-256) in the record.
 #' @param verbose Verbosity; `0` suppresses the announcement line.
-#' @return Invisibly, the path of the run's record directory.
+#' @return `stop_log()`: Invisibly, the path of the run's record directory.
 #' @export
 stop_log <- function(outputs = NULL, verbose = 1L) {
   log <- run_log_state$log
@@ -370,7 +376,7 @@ stop_log <- function(outputs = NULL, verbose = 1L) {
 }
 
 #' Append one run's line to the location's append-only index
-#' @keywords internal
+#' @noRd
 append_run_index <- function(location, record, counts) {
   index <- file.path(location, "index.csv")
   row <- data.frame(
@@ -387,9 +393,9 @@ append_run_index <- function(location, record, counts) {
   invisible(index)
 }
 
-#' List the runs recorded at a log location
+#' @describeIn start_log List the runs recorded at a log location
 #' @param location The log location; default resolved as in [start_log()].
-#' @return A data frame, one row per recorded run (empty if none yet).
+#' @return `list_logs()`: A data frame, one row per recorded run (empty if none yet).
 #' @export
 list_logs <- function(location = NULL) {
   location <- resolve_log_location(location)
@@ -403,10 +409,10 @@ list_logs <- function(location = NULL) {
   utils::read.csv(index, stringsAsFactors = FALSE)
 }
 
-#' Read one run's structured record
+#' @describeIn start_log Read one run's structured record
 #' @param id The run id (as listed by [list_logs()]).
 #' @param location The log location; default resolved as in [start_log()].
-#' @return The run record as a list (the parsed `run.yml`).
+#' @return `read_log()`: The run record as a list (the parsed `run.yml`).
 #' @export
 read_log <- function(id, location = NULL) {
   location <- resolve_log_location(location)
@@ -418,7 +424,7 @@ read_log <- function(id, location = NULL) {
 }
 
 #' Write a checkpoint stamp into the open run log
-#' @keywords internal
+#' @noRd
 record_checkpoint <- function(log, stamp) {
   writeLines(c("",
                paste0("=== checkpoint ", stamp$created_utc, " ==="),

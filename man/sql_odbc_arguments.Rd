@@ -2,9 +2,18 @@
 % Please edit documentation in R/sources.R
 \name{sql_odbc_arguments}
 \alias{sql_odbc_arguments}
-\title{Build the ODBC \code{DBI::dbConnect()} argument list from an sql_connection}
+\alias{sql_discover_objects}
+\alias{sql_read_object}
+\alias{sql_guard_dataframes}
+\title{SQL Server helpers}
 \usage{
 sql_odbc_arguments(server, database, conn)
+
+sql_discover_objects(con, views_query, include = NULL, verbose = 2L)
+
+sql_read_object(con, name)
+
+sql_guard_dataframes(tables)
 }
 \arguments{
 \item{server}{SQL Server host.}
@@ -12,10 +21,47 @@ sql_odbc_arguments(server, database, conn)
 \item{database}{Database name.}
 
 \item{conn}{An \code{\link[=sql_connection]{sql_connection()}}.}
+
+\item{con}{A DBI connection.}
+
+\item{views_query}{Discovery SQL.}
+
+\item{include}{Optional regex to subset the names.}
+
+\item{verbose}{Verbosity.}
+
+\item{name}{Object (table/view) name.}
+
+\item{tables}{A named list of loaded objects.}
 }
 \value{
-A named list of connection arguments.
+\code{sql_odbc_arguments()}: \code{sql_odbc_arguments()}: A named list of connection arguments.
+
+\code{sql_discover_objects()}: A character vector of object names.
+
+\code{sql_read_object()}: A data frame.
+
+\code{sql_guard_dataframes()}: \code{tables}, invisibly, if all are data frames.
 }
 \description{
-Build the ODBC \code{DBI::dbConnect()} argument list from an sql_connection
+Building blocks of the SQL Server datasource: ODBC arguments, object
+discovery and per-object reads.
 }
+\section{Functions}{
+\itemize{
+\item \code{sql_odbc_arguments()}: SQL Server helpers
+
+\item \code{sql_discover_objects()}: Run a discovery query and return the object names in its first column
+
+\item \code{sql_read_object()}: Load one object with a quoted \verb{SELECT * FROM <name>}
+
+The name is quoted as an SQL identifier (never interpolated raw). On a query
+error the object name is included in the message.
+
+\item \code{sql_guard_dataframes()}: Guard: every loaded object must be a data frame (CRCTU expect.dataframes)
+
+A view whose SQL errored can come back as a character error string rather
+than a table. This aborts loudly, naming the offending objects, so an error
+message is never silently snapshotted as data.
+
+}}

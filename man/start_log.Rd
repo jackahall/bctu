@@ -2,7 +2,10 @@
 % Please edit documentation in R/log.R
 \name{start_log}
 \alias{start_log}
-\title{Start a run log}
+\alias{stop_log}
+\alias{list_logs}
+\alias{read_log}
+\title{Run logs}
 \usage{
 start_log(
   location = NULL,
@@ -12,11 +15,15 @@ start_log(
   inputs = NULL,
   verbose = 1L
 )
+
+stop_log(outputs = NULL, verbose = 1L)
+
+list_logs(location = NULL)
+
+read_log(id, location = NULL)
 }
 \arguments{
-\item{location}{Directory to hold run logs. Default: \verb{log-output/} under
-the bctu project root when a project marker is found; outside a project
-it must be given explicitly.}
+\item{location}{The log location; default resolved as in \code{\link[=start_log]{start_log()}}.}
 
 \item{name}{Run name; becomes the record directory's stem. Default: the
 running script's file name under \code{Rscript}, else \code{interactive-session}.}
@@ -30,26 +37,42 @@ SHA-256 fingerprint are recorded.}
 file's SHA-256 is recorded.}
 
 \item{verbose}{Verbosity; \code{0} suppresses the announcement line.}
+
+\item{outputs}{Optional character vector of output files or directories to
+inventory (path, size, SHA-256) in the record.}
+
+\item{id}{The run id (as listed by \code{\link[=list_logs]{list_logs()}}).}
 }
 \value{
-Invisibly, the run id. The run directory is
+\code{start_log()}: \code{start_log()}: Invisibly, the run id. The run directory is
 \verb{<location>/<name>-<UTC time>} (suffixed \code{-N} on a same-second collision),
 where the time equals the header checkpoint's \code{created_utc}.
+
+\code{stop_log()}: Invisibly, the path of the run's record directory.
+
+\code{list_logs()}: A data frame, one row per recorded run (empty if none yet).
+
+\code{read_log()}: The run record as a list (the parsed \code{run.yml}).
 }
 \description{
+A run log records one run of a script: its checkpoints, the snapshot it
+used, the files it read and wrote, and its outcome, as a YAML record plus an
+append-only index.
+}
+\section{Functions}{
+\itemize{
+\item \code{start_log()}: Run logs
+
 Opens a recorded session: from this call until \code{\link[=stop_log]{stop_log()}}, everything the
 session prints is copied to a transcript on disc, warnings and errors are
 tallied, each top-level command is appended, and a structured YAML record
 accompanies the transcript. Nothing about the console experience changes:
 output, messages, warnings and errors still appear exactly as before; the
 transcript is a copy, not a diversion.
-}
-\details{
 The record header is written to disc BEFORE this function returns, in
 status \code{started}, so a session that later dies still leaves the header and
 the transcript up to the point of death; a record that never reached
 \code{closed} is itself evidence of an interrupted run.
-
 Command echo is appended after each top-level expression completes, so a
 command appears in the transcript after its own output (an R limitation:
 there is no pre-execution hook). Warning/error/message capture depends on
@@ -62,7 +85,20 @@ in \code{tryCatch()} or similar, where R refuses global handlers, \code{start_lo
 says so and records the transcript without condition tallies (\code{"none"}).
 Input that is not a top-level expression (e.g. \code{readline()} answers) and
 graphics are not captured.
-}
+
+\item \code{stop_log()}: Stop the open run log
+
+Closes the recorded session: removes the capture hooks (the console was
+never altered, so nothing visibly changes back), finalises the YAML record
+with end time, status and tallies, records an inventory of \code{outputs} files
+with SHA-256, appends the run to the location's \code{index.csv}, and writes the
+\code{run.msg} sidecar if the run was not clean.
+
+\item \code{list_logs()}: List the runs recorded at a log location
+
+\item \code{read_log()}: Read one run's structured record
+
+}}
 \examples{
 \dontrun{
 start_log()

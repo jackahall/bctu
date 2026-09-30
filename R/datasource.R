@@ -8,7 +8,7 @@
 # sources return a one-element list. Snapshots are therefore multi-table by
 # default and REDCap is just the one-table case.
 
-#' Create a datasource
+#' @describeIn datasource_redcap Create a datasource
 #' @param type Short source type, e.g. `"redcap"`, `"sql"`, `"example"`.
 #' @param fetch `function(creds, config, verbose, ...)` returning a named list
 #'   of data frames (the tables).
@@ -16,7 +16,7 @@
 #' @param config Named list of connection/query configuration (no secrets).
 #' @param test Optional `function(creds, config)` for a connectivity check.
 #' @param label Human label for printing/audit; default `type`.
-#' @return A `datasource` object.
+#' @return `new_datasource()`: A `datasource` object.
 #' @export
 new_datasource <- function(type, fetch, creds = NULL, config = list(),
                            test = NULL, label = type) {
@@ -44,14 +44,24 @@ print.datasource <- function(x, ...) {
 # ---------------------------------------------------------------------------
 # Credentials -- one spec, one resolver, shared by fetch and has_credential.
 # ---------------------------------------------------------------------------
-#' Declare where a credential lives (never the secret itself)
+#' Credentials: declare where a secret lives and resolve it
+#'
+#' A credential spec names a secret (a token or password) and where it lives,
+#' in the keyring or an environment variable, without holding the secret
+#' itself. One resolver serves every lookup, so `has_credential()` and
+#' `resolve_credentials()` always agree.
+#' @name credential_spec
+NULL
+
+#' @describeIn credential_spec Credentials: declare where a secret lives and resolve it
+#' @order 1
 #' @param id Logical credential name, e.g. `"ocean"`.
 #' @param service Keyring service; default `"bctu_api_token"`.
 #' @param env Environment variable name; default derived
 #'   `BCTU_API_TOKEN_<ID>`.
 #' @param expect_nchar Optional exact expected length (e.g. REDCap tokens = 32).
 #' @param required Is the credential required? Default `TRUE`.
-#' @return A `credential_spec`.
+#' @return `credential_spec()`: `credential_spec()`: A `credential_spec`.
 #' @examples
 #' credential_spec("ocean")
 #' credential_spec("ocean", expect_nchar = 32L)
@@ -65,7 +75,7 @@ credential_spec <- function(id, service = "bctu_api_token", env = NULL,
             class = "credential_spec")
 }
 
-#' Resolve a credential: keyring, then env var; one documented precedence
+#' @describeIn credential_spec Resolve a credential: keyring, then env var; one documented precedence
 #'
 #' Precedence is keyring then environment variable. If both are set and differ,
 #' warns (a rotated env-var token silently shadowed by a stale keyring value is
@@ -73,7 +83,7 @@ credential_spec <- function(id, service = "bctu_api_token", env = NULL,
 #' `required`.
 #' @param spec A [credential_spec()] or `NULL`.
 #' @param verbose Verbosity.
-#' @return The resolved secret (character), or `NULL`.
+#' @return `resolve_credentials()`: The resolved secret (character), or `NULL`.
 #' @export
 resolve_credentials <- function(spec, verbose = 1L) {
   if (is.null(spec)) return(NULL)
@@ -100,12 +110,12 @@ resolve_credentials <- function(spec, verbose = 1L) {
   secret
 }
 
-#' Is a credential resolvable? (shares the exact resolver, so it never disagrees)
+#' @describeIn credential_spec Is a credential resolvable? (shares the exact resolver, so it never disagrees)
 #'
 #' A read-only check: it never emits the keyring/env divergence warning that
 #' [resolve_credentials()] would (it runs quietly).
 #' @param spec A [credential_spec()], or `NULL`.
-#' @return `TRUE` if the credential resolves to a non-empty secret.
+#' @return `has_credential()`: `TRUE` if the credential resolves to a non-empty secret.
 #' @export
 has_credential <- function(spec) {
   if (is.null(spec)) return(FALSE)
@@ -117,23 +127,22 @@ has_credential <- function(spec) {
 # ---------------------------------------------------------------------------
 # fetch_snapshot: source -> named list of tables -> snapshot
 # ---------------------------------------------------------------------------
-#' Fetch a snapshot from a data source
+#' @describeIn take_snapshot Fetch a snapshot from a data source
 #'
 #' Pulls every table declared by a data source, validates the returned tables,
 #' and assembles them into an in-memory snapshot with a redacted record of the
 #' source for the audit trail.
-#'
 #' @param x A `datasource` object (for example from [datasource_redcap()],
 #'   [datasource_sql()], or [datasource_example()]).
 #' @param verbose Integer verbosity level: `0` silent, `1` brief, `2` detailed.
 #' @param ... Passed on to the source's fetch function.
 #'
-#' @return A `bctu_snapshot` object: a named list of data frames carrying the
+#' @return `fetch_snapshot()`: A `bctu_snapshot` object: a named list of data frames carrying the
 #'   snapshot id, data-cut date, and redacted source as attributes.
 #' @export
 fetch_snapshot <- function(x, ...) UseMethod("fetch_snapshot")
 
-#' @rdname fetch_snapshot
+#' @rdname take_snapshot
 #' @export
 fetch_snapshot.datasource <- function(x, verbose = 2L, ...) {
   creds  <- resolve_credentials(x$creds, verbose = verbose)
@@ -143,7 +152,7 @@ fetch_snapshot.datasource <- function(x, verbose = 2L, ...) {
               name = x$config$name %||% x$label)
 }
 
-#' @keywords internal
+#' @noRd
 validate_tables <- function(tables) {
   if (is.data.frame(tables)) tables <- list(records = tables)
   if (!is.list(tables) || is.null(names(tables)) || any(!nzchar(names(tables))))
@@ -157,7 +166,7 @@ validate_tables <- function(tables) {
   tables
 }
 
-#' @keywords internal
+#' @noRd
 redact_source <- function(x) {
   list(type = x$type, label = x$label,
        config = x$config[!vapply(x$config, is.function, logical(1))],
@@ -170,7 +179,7 @@ redact_source <- function(x) {
 # REDCap-flavour = one table; SQL-flavour = multiple tables.
 # `drift` adds records so two snapshots differ (drives the update-diff test).
 # ---------------------------------------------------------------------------
-#' A simulated example datasource (no database, deterministic)
+#' @describeIn datasource_redcap A simulated example datasource (no database, deterministic)
 #' @param kind `"redcap"` (single table) or `"sql"` (multiple tables).
 #' @param n Base number of participants.
 #' @param seed RNG seed for reproducibility.

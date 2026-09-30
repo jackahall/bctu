@@ -2,17 +2,86 @@
 % Please edit documentation in R/config.R
 \name{bctu_project}
 \alias{bctu_project}
-\title{Read the bctu project configuration}
+\alias{bctu_init_project}
+\alias{snapshot_store}
+\alias{bctu_config}
+\title{Project configuration}
 \usage{
 bctu_project(start = getwd())
+
+bctu_init_project(
+  name,
+  snapshot_store = "Data/Snapshots",
+  dir = getwd(),
+  overwrite = FALSE
+)
+
+snapshot_store(start = getwd(), verbose = 1L, create = FALSE)
+
+bctu_config(start = getwd())
 }
 \arguments{
 \item{start}{Directory to search upward from; default the current directory.}
+
+\item{name}{Project/trial name (e.g. \code{"OCeAN"}).}
+
+\item{snapshot_store}{Snapshot directory, relative to the marker. Default
+\code{"Data/Snapshots"}.}
+
+\item{dir}{Directory to write the marker into; default the current directory.}
+
+\item{overwrite}{Overwrite an existing marker? Default \code{FALSE}.}
+
+\item{verbose}{If \verb{>= 1}, announce the resolved path and its source.}
+
+\item{create}{Create the store directory if it does not exist? Write paths
+pass \code{TRUE}; read/inspect paths leave it \code{FALSE} (no directory is created
+merely by resolving or listing).}
 }
 \value{
-A list with \code{name}, \code{file} (absolute marker path), \code{root} (marker's
+\code{bctu_project()}: \code{bctu_project()}: A list with \code{name}, \code{file} (absolute marker path), \code{root} (marker's
 directory), and the raw declared fields.
+
+\code{bctu_init_project()}: The absolute path of the written marker, invisibly.
+
+\code{snapshot_store()}: The absolute snapshot store path.
+
+\code{bctu_config()}: The project configuration list (see \code{\link[=bctu_project]{bctu_project()}}), invisibly.
 }
 \description{
-Read the bctu project configuration
+A bctu project is marked by a \code{bctu-project.yml} at the trial root.
+Locations are read from it, never guessed from the working directory, and
+every resolved path is announced.
+}
+\section{Functions}{
+\itemize{
+\item \code{bctu_project()}: Project configuration
+
+\item \code{bctu_init_project()}: Initialise a bctu project
+
+Writes a \code{bctu-project.yml} marker at \code{dir} declaring the project name and,
+relative to the marker, where snapshots live. This file is the single anchor
+for all later path resolution and should be committed to the trial repo.
+
+\item \code{snapshot_store()}: Resolve the snapshot store directory (absolute), and announce it
+
+The store is resolved RELATIVE TO THE PROJECT MARKER, never the working
+directory. This is the single store resolver: it ERRORS if no
+\code{bctu-project.yml} is found (no silent working-directory fallback), so a
+snapshot can never be written somewhere unnoticed. Pass an explicit \verb{store=}
+to a snapshot function to write outside a project.
+
+\item \code{bctu_config()}: Print the fully resolved configuration (for operators and auditors)
+
+}}
+\examples{
+\dontrun{
+bctu_init_project("OCeAN", dir = "path/to/trial/root")
+}
+\dontrun{
+snapshot_store()
+}
+\dontrun{
+bctu_config()
+}
 }

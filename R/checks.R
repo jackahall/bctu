@@ -16,17 +16,26 @@
 # datasets you pass ARE the comparison.
 
 # --- running a DVP ----------------------------------------------------------
-#' Run a DVP function on one dataset and validate its output
+#' Run and compare data validation checks
+#'
+#' A DVP (data validation plan) is a function of a snapshot's data returning a
+#' named list of findings, one data frame per check. These functions run a DVP,
+#' compare its findings between two snapshots, and shape findings frames.
+#' @name run_dvp
+NULL
+
+#' @describeIn run_dvp Run and compare data validation checks
 #'
 #' A DVP is `function(data)` returning a named list, one element per check. Each
 #' element is a data frame of findings (or `NULL` / an empty data frame when the
 #' check finds nothing). The function is rejected with a clear error if it does
 #' not return a named list, so a malformed DVP fails immediately rather than
 #' producing an unusable report.
+#' @order 1
 #' @param dvp A function of the data returning a named list of findings.
 #' @param data The data the DVP reads: usually a snapshot (a named list of data
 #'   frames), but any object the DVP function accepts.
-#' @return A named list of findings data frames (empty frames kept in place).
+#' @return `run_dvp()`: `run_dvp()`: A named list of findings data frames (empty frames kept in place).
 #' @examples
 #' data <- data.frame(id = 1:3, weight_kg = c(65, 999, 70))
 #' dvp <- function(data) {
@@ -69,7 +78,7 @@ run_dvp <- function(dvp, data) {
 }
 
 # --- before / after comparison ---------------------------------------------
-#' Whole-row identity keys for a findings data frame
+#' @describeIn run_dvp Whole-row identity keys for a findings data frame
 #'
 #' Joins every column of each row into one string, so two findings are the same
 #' only when their entire rows match. Findings are free-form, so identity is the
@@ -77,7 +86,7 @@ run_dvp <- function(dvp, data) {
 #' encoded with a reserved control character, distinct from the literal string
 #' `"NA"`, so the two can never collide in the key.
 #' @param df A findings data frame.
-#' @return A character vector of one key per row (empty for a zero-row frame).
+#' @return `finding_row_keys()`: A character vector of one key per row (empty for a zero-row frame).
 #' @export
 finding_row_keys <- function(df) {
   if (nrow(df) == 0L) return(character(0))
@@ -97,10 +106,10 @@ finding_row_keys <- function(df) {
 #' @param template A vector to take the type from.
 #' @param n Length of the result.
 #' @return A length-`n` vector of `NA`s of `template`'s type.
-#' @keywords internal
+#' @noRd
 na_like <- function(template, n) template[rep(NA_integer_, n)]
 
-#' Give two findings frames the same columns, with the same types
+#' @describeIn run_dvp Give two findings frames the same columns, with the same types
 #'
 #' A column missing from one frame is added to it as typed `NA`s taken from the
 #' other. A column present in both but read as different types (a field that
@@ -109,7 +118,7 @@ na_like <- function(template, n) template[rep(NA_integer_, n)]
 #' written as text, with a warning naming the columns.
 #' @param x,y Findings data frames.
 #' @param check Optional check name, named in the warning.
-#' @return A list of the two frames, carrying the same columns in the same
+#' @return `align_findings()`: A list of the two frames, carrying the same columns in the same
 #'   order.
 #' @export
 align_findings <- function(x, y, check = NULL) {
@@ -138,7 +147,7 @@ align_findings <- function(x, y, check = NULL) {
   list(x[cols], y[cols])
 }
 
-#' Row-bind two findings frames, tolerating differing columns
+#' @describeIn run_dvp Row-bind two findings frames, tolerating differing columns
 #'
 #' The `before` and `after` findings for one check share the same columns and
 #' types in normal use, so this is a plain `rbind`; [align_findings()] handles
@@ -146,7 +155,7 @@ align_findings <- function(x, y, check = NULL) {
 #' changed between the two extracts.
 #' @param x,y Findings data frames.
 #' @param check Optional check name, named in any alignment warning.
-#' @return One data frame with the union of columns.
+#' @return `bind_findings()`: One data frame with the union of columns.
 #' @export
 bind_findings <- function(x, y, check = NULL) {
   if (nrow(x) == 0L && nrow(y) == 0L) {
@@ -163,7 +172,7 @@ bind_findings <- function(x, y, check = NULL) {
   out
 }
 
-#' Compare a DVP's findings between two datasets (before vs after)
+#' @describeIn run_dvp Compare a DVP's findings between two datasets (before vs after)
 #'
 #' Runs `dvp` on `before` and on `after` and, for every check, labels each
 #' finding whole-row: `new` (row present in `after` but not `before`),
@@ -174,7 +183,7 @@ bind_findings <- function(x, y, check = NULL) {
 #' not reconciled and every row will read as changed.
 #' @param dvp A DVP function (see [run_dvp()]).
 #' @param before,after The two datasets (snapshots) to compare.
-#' @return A named list; each element is that check's findings with an added
+#' @return `compare_dvp()`: A named list; each element is that check's findings with an added
 #'   `status` column (`new` / `unchanged` / `resolved`).
 #' @examples
 #' before <- data.frame(id = 1:3, weight_kg = c(65, 999, 70))
@@ -231,7 +240,7 @@ compare_dvp <- function(dvp, before, after) {
 #' @param check_names The check names the DVP produced this run.
 #' @return `info`, with columns ordered `check`, `section`, `critical`, `query`
 #'   (those present), row order preserved.
-#' @keywords internal
+#' @noRd
 validate_check_info <- function(info, check_names) {
   if (!is.data.frame(info) || !all(c("check", "query") %in% names(info)))
     cli::cli_abort(c(
@@ -270,7 +279,7 @@ validate_check_info <- function(info, check_names) {
 #' @param info A validated check-info table.
 #' @return `sheets` with a `query` first column on every non-empty frame whose
 #'   check has an info row.
-#' @keywords internal
+#' @noRd
 add_query_column <- function(sheets, info) {
   clash <- names(sheets)[vapply(sheets, function(d) "query" %in% names(d), logical(1))]
   if (length(clash))
@@ -303,7 +312,7 @@ add_query_column <- function(sheets, info) {
 #' @param after The current snapshot the report is about.
 #' @param verbose Verbosity.
 #' @return A `bctu_snapshot`, or `NULL` for no comparison.
-#' @keywords internal
+#' @noRd
 resolve_before_snapshot <- function(before, after, verbose = 1L) {
   # anything that is not a selector string (a snapshot, or any dataset the
   # DVP accepts) passes through untouched; NULL stays "no comparison"
@@ -344,12 +353,12 @@ resolve_before_snapshot <- function(before, after, verbose = 1L) {
 }
 
 # --- snapshot fingerprint ---------------------------------------------------
-#' A single integrity fingerprint for a saved snapshot
+#' @describeIn take_snapshot A single integrity fingerprint for a saved snapshot
 #'
 #' Derived from the per-table SHA-256 values in the snapshot's own manifest, so
 #' it does not re-hash the payload and matches what the snapshot recorded.
 #' @param snapshot A saved `bctu_snapshot` (must carry its on-disk directory).
-#' @return A hex string, or `NA` if the snapshot is not on disk.
+#' @return `snapshot_fingerprint()`: A hex string, or `NA` if the snapshot is not on disk.
 #' @export
 snapshot_fingerprint <- function(snapshot) {
   dir <- attr(snapshot, "dir")
@@ -361,20 +370,20 @@ snapshot_fingerprint <- function(snapshot) {
 }
 
 # --- trial name and per-site resolution ------------------------------------
-#' The study/trial name carried on a snapshot
+#' @describeIn take_snapshot The study/trial name carried on a snapshot
 #'
 #' Read from the snapshot's own metadata (which the datasource sets), so a
 #' report never needs the trial name passed in by hand. Falls back to
 #' `"snapshot"` when a snapshot carries no name.
 #' @param snapshot A `bctu_snapshot`.
-#' @return A filesystem-safe study/trial token.
+#' @return `report_trial_name()`: A filesystem-safe study/trial token.
 #' @export
 report_trial_name <- function(snapshot) {
   meta <- attr(snapshot, "bctu_meta")
   sanitise_study_name(if (is.list(meta)) meta$name else NULL)
 }
 
-#' Group label for each finding row, from the findings themselves or a snapshot
+#' @describeIn run_dvp Group label for each finding row, from the findings themselves or a snapshot
 #'
 #' A finding that carries `group_col` as one of its own columns is sited from
 #' that column directly, row by row (a trial whose dataset has no single id
@@ -391,7 +400,7 @@ report_trial_name <- function(snapshot) {
 #' @param id_col Name of the record-id column shared by findings and data.
 #' @param group_col Name of the grouping column (a site, a country, ...) in the
 #'   findings and/or the data.
-#' @return A character vector of sites, one per finding row.
+#' @return `resolve_finding_sites()`: A character vector of sites, one per finding row.
 #' @export
 resolve_finding_sites <- function(findings, snapshots, id_col, group_col) {
   own <- if (group_col %in% names(findings)) as.character(findings[[group_col]])
@@ -414,7 +423,7 @@ resolve_finding_sites <- function(findings, snapshots, id_col, group_col) {
   site
 }
 
-#' Group labels for each finding row, one column per grouping variable
+#' @describeIn run_dvp Group labels for each finding row, one column per grouping variable
 #'
 #' Calls [resolve_finding_sites()] once per grouping column, so every level is
 #' resolved the same way: from the finding's own column when it has one,
@@ -423,7 +432,7 @@ resolve_finding_sites <- function(findings, snapshots, id_col, group_col) {
 #' @param snapshots A list of snapshots to union.
 #' @param id_col Name of the record-id column shared by findings and data.
 #' @param split_by Grouping columns, outermost first.
-#' @return A character matrix, one row per finding and one column per entry in
+#' @return `finding_group_labels()`: A character matrix, one row per finding and one column per entry in
 #'   `split_by`.
 #' @export
 finding_group_labels <- function(findings, snapshots, id_col, split_by) {
@@ -437,7 +446,7 @@ finding_group_labels <- function(findings, snapshots, id_col, split_by) {
 #'
 #' @param split_by Grouping columns, outermost first, or `NULL` for no split.
 #' @return A character vector of column names, or `NULL`.
-#' @keywords internal
+#' @noRd
 resolve_split_by <- function(split_by) {
   if (is.null(split_by)) return(NULL)
   split_by <- as.character(split_by)
@@ -456,7 +465,7 @@ resolve_split_by <- function(split_by) {
 #' exempt, since a finding can carry a country but no site.
 #' @param labels A list of group-label matrices (see [finding_group_labels()]).
 #' @return Invisibly `TRUE`; errors when a level does not nest.
-#' @keywords internal
+#' @noRd
 check_split_nesting <- function(labels) {
   all_labels <- do.call(rbind, unname(labels))
   if (is.null(all_labels) || ncol(all_labels) < 2L) return(invisible(TRUE))
@@ -487,7 +496,7 @@ check_split_nesting <- function(labels) {
 #' @param write_readable Also write per-check CSV/TXT copies?
 #' @param check_info Optional validated check-info table.
 #' @return Invisibly, the directory.
-#' @keywords internal
+#' @noRd
 write_split_sets <- function(sheets, labels, dir, base_name, level,
                              write_readable = FALSE, check_info = NULL) {
   n_levels <- ncol(labels[[1L]])
@@ -523,7 +532,7 @@ write_split_sets <- function(sheets, labels, dir, base_name, level,
 }
 
 # --- writers ----------------------------------------------------------------
-#' Write each check's findings as a readable CSV and plain-text copy
+#' @describeIn save_dvr Write each check's findings as a readable CSV and plain-text copy
 #'
 #' One pair of files per check, named by the check. Gives a fully testable,
 #' Excel-free record of every finding. Names that sanitise to the same file
@@ -531,7 +540,7 @@ write_split_sets <- function(sheets, labels, dir, base_name, level,
 #' with a trailing underscore, the same way the workbook sheet names are.
 #' @param sheets A named list of findings data frames.
 #' @param dir Directory to write into (created if missing).
-#' @return Invisibly, the directory.
+#' @return `write_findings_readable()`: Invisibly, the directory.
 #' @export
 write_findings_readable <- function(sheets, dir) {
   if (!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
@@ -548,7 +557,7 @@ write_findings_readable <- function(sheets, dir) {
   invisible(dir)
 }
 
-#' Write a set of checks to one Excel workbook, one worksheet per check
+#' @describeIn save_dvr Write a set of checks to one Excel workbook, one worksheet per check
 #'
 #' A convenience only: the CSV/TXT copies carry the same content, so the DVP
 #' logic is fully testable without Excel. Uses `openxlsx` if installed; if not,
@@ -559,7 +568,7 @@ write_findings_readable <- function(sheets, dir) {
 #' @param index Optional check-info table written as a leading `checks_index`
 #'   worksheet (query text catalogue; no counts, so it is identical between a
 #'   full and an update set).
-#' @return Invisibly, the path (or `NULL` if `openxlsx` is unavailable or there
+#' @return `write_findings_workbook()`: Invisibly, the path (or `NULL` if `openxlsx` is unavailable or there
 #'   is nothing to write).
 #' @export
 write_findings_workbook <- function(sheets, path, index = NULL) {
@@ -591,10 +600,10 @@ write_findings_workbook <- function(sheets, path, index = NULL) {
 #' the findings in every report set and per-site directory, so query text is
 #' never stranded away from the findings it explains. Lists every check in the
 #' info table, including all-clear checks with no findings this run.
-#' @param info A validated check-info table (see [validate_check_info()]).
+#' @param info A validated check-info table (see `validate_check_info()`).
 #' @param dir Directory to write into.
 #' @return Invisibly, the directory.
-#' @keywords internal
+#' @noRd
 write_checks_index <- function(info, dir) {
   df <- as.data.frame(info)
   utils::write.csv(df, file.path(dir, "checks_index.csv"), row.names = FALSE, na = "")
@@ -609,7 +618,7 @@ write_checks_index <- function(info, dir) {
 #' sanitises the name and, on a clash, appends a numeric suffix that SHORTENS the
 #' stem so the result always changes and always stays within 31 characters (the
 #' naive "append and re-truncate" never terminates once the name is already 31).
-#' @keywords internal
+#' @noRd
 unique_sheet_name <- function(nm, used) {
   base <- substr(gsub("[^A-Za-z0-9_ -]", "_", nm), 1L, 31L)
   if (!nzchar(base)) base <- "sheet"
@@ -623,18 +632,18 @@ unique_sheet_name <- function(nm, used) {
   cand
 }
 
-#' Drop checks with no findings
+#' @describeIn run_dvp Drop checks with no findings
 #'
 #' Empty checks get no worksheet, matching the delivered DVR (an all-clear check
 #' is not a blank tab). The names are preserved for the checks that remain.
 #' @param sheets A named list of findings data frames.
-#' @return The subset of `sheets` with at least one row.
+#' @return `nonempty_checks()`: The subset of `sheets` with at least one row.
 #' @export
 nonempty_checks <- function(sheets) {
   sheets[vapply(sheets, function(d) nrow(d) > 0L, logical(1))]
 }
 
-#' Write one report set: an overall workbook plus (optionally) a group split
+#' @describeIn save_dvr Write one report set: an overall workbook plus (optionally) a group split
 #'
 #' The delivered record is one Excel workbook per set: an overall workbook of
 #' all findings (one worksheet per non-empty check), plus a workbook per group
@@ -662,7 +671,7 @@ nonempty_checks <- function(sheets) {
 #' @param check_info Optional validated check-info table; when given, the
 #'   checks index (sheet, CSV and TXT) is written with this set and every
 #'   per-group output, so query text always accompanies the findings.
-#' @return Invisibly, the directory.
+#' @return `write_report_set()`: Invisibly, the directory.
 #' @export
 write_report_set <- function(sheets, snapshot, dir, base_name,
                              id_col = "record_id", split_by = NULL,
@@ -711,7 +720,7 @@ summary_filename <- "summary.md"
 #' @param compared Was the report compared to a before snapshot?
 #' @return A named integer vector: `Findings` when uncompared; otherwise
 #'   `Current` (new plus unchanged), `New`, `Unchanged` and `Resolved`.
-#' @keywords internal
+#' @noRd
 status_tally <- function(status, compared) {
   if (!compared) return(c(Findings = length(status)))
   c(Current   = sum(status != "resolved"),
@@ -726,7 +735,7 @@ status_tally <- function(status, compared) {
 #'   right-aligned.
 #' @param rows A list of character vectors, one per row.
 #' @return A character vector of markdown lines.
-#' @keywords internal
+#' @noRd
 markdown_table <- function(header, rows) {
   line <- function(cells) paste0("| ", paste(cells, collapse = " | "), " |")
   c(line(header),
@@ -734,7 +743,7 @@ markdown_table <- function(header, rows) {
     vapply(rows, line, character(1)))
 }
 
-#' Write the readable summary of a DVR/CDI run
+#' @describeIn save_dvr Write the readable summary of a DVR/CDI run
 #'
 #' A markdown companion to the YAML manifest, laid out for reading in a
 #' meeting: the run's identity, a table of findings per check, and, when the
@@ -747,7 +756,7 @@ markdown_table <- function(header, rows) {
 #' @param labels Group-label matrices for the non-empty sheets (see
 #'   [finding_group_labels()]), or `NULL` when the report is not split.
 #' @param path File to write.
-#' @return Invisibly, the lines written.
+#' @return `write_report_summary()`: Invisibly, the lines written.
 #' @export
 write_report_summary <- function(manifest, sheets, labels = NULL, path) {
   compared <- isTRUE(manifest$compared)
@@ -807,7 +816,16 @@ write_report_summary <- function(manifest, sheets, labels = NULL, path) {
 }
 
 # --- the report engine ------------------------------------------------------
-#' Build a Data Validation Report (DVR) from a DVP function and a snapshot
+#' Data validation (DVR) and critical data (CDI) reports
+#'
+#' `save_dvr()` and `save_cdi()` run a DVP on a snapshot, compare the findings
+#' with the previous snapshot by default, and write the workbooks, readable
+#' files and summary that make up a Data Validation Report or Critical Data
+#' Items report. The lower-level writers are exported for custom report sets.
+#' @name save_dvr
+NULL
+
+#' @describeIn save_dvr Data validation (DVR) and critical data (CDI) reports
 #'
 #' Runs `dvp` on the `after` snapshot and writes, under every directory in
 #' `paths`, the house layout `<path>/<after snapshot id>/v<version>/` (a folder
@@ -826,6 +844,7 @@ write_report_summary <- function(manifest, sheets, labels = NULL, path) {
 #' `include_resolved = TRUE`. The trial name is
 #' taken from the snapshot itself (see [report_trial_name()]); nothing about the
 #' trial has to be passed in.
+#' @order 1
 #' @param dvp A DVP function: `function(data)` returning a named list of
 #'   findings (see [run_dvp()]).
 #' @param after The current snapshot the report is about.
@@ -885,7 +904,7 @@ write_report_summary <- function(manifest, sheets, labels = NULL, path) {
 #'   check), and `openxlsx` is required up front. The checks index and the YAML
 #'   manifest are always written.
 #' @param verbose Verbosity.
-#' @return Invisibly, a list with the report id, directories written, sheets,
+#' @return `save_dvr()`: `save_dvr()`: Invisibly, a list with the report id, directories written, sheets,
 #'   and per-check counts.
 #' @examples
 #' \dontrun{
@@ -907,12 +926,11 @@ save_dvr <- function(dvp, after, before = "penultimate", paths = getwd(),
                   write_readable = write_readable, verbose = verbose)
 }
 
-#' Build a Critical Data Items (CDI) report from a DVP function and a snapshot
+#' @describeIn save_dvr Build a Critical Data Items (CDI) report from a DVP function and a snapshot
 #'
 #' Identical machinery to [save_dvr()] with its own label, including the
 #' default comparison against the previous snapshot.
-#' @inheritParams save_dvr
-#' @return Invisibly, a list with the report id, directories written, sheets,
+#' @return `save_cdi()`: Invisibly, a list with the report id, directories written, sheets,
 #'   and per-check counts.
 #' @examples
 #' \dontrun{
@@ -935,13 +953,11 @@ save_cdi <- function(dvp, after, before = "penultimate", paths = getwd(),
                   write_readable = write_readable, verbose = verbose)
 }
 
-#' Shared engine behind [save_dvr()] and [save_cdi()]
+#' @describeIn save_dvr Shared engine behind [save_dvr()] and [save_cdi()]
 #'
-#' Explicitly named (no hidden helper): the DVR and CDI wrappers differ only
-#' in their `kind` label.
-#' @inheritParams save_dvr
+#' The DVR and CDI wrappers differ only in their `kind` label.
 #' @param kind `"dvr"` or `"cdi"`.
-#' @return Invisibly, a list describing the written report.
+#' @return `run_data_report()`: Invisibly, a list describing the written report.
 #' @export
 run_data_report <- function(dvp, after, before = "penultimate", paths = getwd(),
                             kind = c("dvr", "cdi"), id_col = "record_id",

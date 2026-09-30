@@ -2,30 +2,160 @@
 % Please edit documentation in R/checks.R
 \name{run_dvp}
 \alias{run_dvp}
-\title{Run a DVP function on one dataset and validate its output}
+\alias{finding_row_keys}
+\alias{align_findings}
+\alias{bind_findings}
+\alias{compare_dvp}
+\alias{resolve_finding_sites}
+\alias{finding_group_labels}
+\alias{nonempty_checks}
+\title{Run and compare data validation checks}
 \usage{
 run_dvp(dvp, data)
+
+finding_row_keys(df)
+
+align_findings(x, y, check = NULL)
+
+bind_findings(x, y, check = NULL)
+
+compare_dvp(dvp, before, after)
+
+resolve_finding_sites(findings, snapshots, id_col, group_col)
+
+finding_group_labels(findings, snapshots, id_col, split_by)
+
+nonempty_checks(sheets)
 }
 \arguments{
-\item{dvp}{A function of the data returning a named list of findings.}
+\item{dvp}{A DVP function (see \code{\link[=run_dvp]{run_dvp()}}).}
 
 \item{data}{The data the DVP reads: usually a snapshot (a named list of data
 frames), but any object the DVP function accepts.}
+
+\item{df}{A findings data frame.}
+
+\item{x, y}{Findings data frames.}
+
+\item{check}{Optional check name, named in any alignment warning.}
+
+\item{before, after}{The two datasets (snapshots) to compare.}
+
+\item{findings}{A findings data frame.}
+
+\item{snapshots}{A list of snapshots to union.}
+
+\item{id_col}{Name of the record-id column shared by findings and data.}
+
+\item{group_col}{Name of the grouping column (a site, a country, ...) in the
+findings and/or the data.}
+
+\item{split_by}{Grouping columns, outermost first.}
+
+\item{sheets}{A named list of findings data frames.}
 }
 \value{
-A named list of findings data frames (empty frames kept in place).
+\code{run_dvp()}: \code{run_dvp()}: A named list of findings data frames (empty frames kept in place).
+
+\code{finding_row_keys()}: A character vector of one key per row (empty for a zero-row frame).
+
+\code{align_findings()}: A list of the two frames, carrying the same columns in the same
+order.
+
+\code{bind_findings()}: One data frame with the union of columns.
+
+\code{compare_dvp()}: A named list; each element is that check's findings with an added
+\code{status} column (\code{new} / \code{unchanged} / \code{resolved}).
+
+\code{resolve_finding_sites()}: A character vector of sites, one per finding row.
+
+\code{finding_group_labels()}: A character matrix, one row per finding and one column per entry in
+\code{split_by}.
+
+\code{nonempty_checks()}: The subset of \code{sheets} with at least one row.
 }
 \description{
+A DVP (data validation plan) is a function of a snapshot's data returning a
+named list of findings, one data frame per check. These functions run a DVP,
+compare its findings between two snapshots, and shape findings frames.
+}
+\section{Functions}{
+\itemize{
+\item \code{run_dvp()}: Run and compare data validation checks
+
 A DVP is \verb{function(data)} returning a named list, one element per check. Each
 element is a data frame of findings (or \code{NULL} / an empty data frame when the
 check finds nothing). The function is rejected with a clear error if it does
 not return a named list, so a malformed DVP fails immediately rather than
 producing an unusable report.
-}
+
+\item \code{finding_row_keys()}: Whole-row identity keys for a findings data frame
+
+Joins every column of each row into one string, so two findings are the same
+only when their entire rows match. Findings are free-form, so identity is the
+whole row and nothing is assumed about column names. A genuine \code{NA} is
+encoded with a reserved control character, distinct from the literal string
+\code{"NA"}, so the two can never collide in the key.
+
+\item \code{align_findings()}: Give two findings frames the same columns, with the same types
+
+A column missing from one frame is added to it as typed \code{NA}s taken from the
+other. A column present in both but read as different types (a field that
+was empty in one extract and populated in the next) is widened: an
+all-missing column takes the other frame's type, and any other mismatch is
+written as text, with a warning naming the columns.
+
+\item \code{bind_findings()}: Row-bind two findings frames, tolerating differing columns
+
+The \code{before} and \code{after} findings for one check share the same columns and
+types in normal use, so this is a plain \code{rbind}; \code{\link[=align_findings]{align_findings()}} handles
+a check that appears in one run but not the other, and a column whose type
+changed between the two extracts.
+
+\item \code{compare_dvp()}: Compare a DVP's findings between two datasets (before vs after)
+
+Runs \code{dvp} on \code{before} and on \code{after} and, for every check, labels each
+finding whole-row: \code{new} (row present in \code{after} but not \code{before}),
+\code{resolved} (row present in \code{before} but not \code{after}) or \code{unchanged} (row in
+both). Rows are keyed positionally over the columns each frame returns, so a
+check must return the same columns, in the same order, on both runs; a check
+that returns different or reordered columns between \code{before} and \code{after} is
+not reconciled and every row will read as changed.
+
+\item \code{resolve_finding_sites()}: Group label for each finding row, from the findings themselves or a snapshot
+
+A finding that carries \code{group_col} as one of its own columns is sited from
+that column directly, row by row (a trial whose dataset has no single id
+column can still split per site by selecting the site into each finding).
+Rows without their own site are resolved from the snapshot(s): any table
+holding both \code{id_col} and \code{group_col} maps a record to a site. Pass both the
+\code{before} and \code{after} snapshots when comparing, so a \code{resolved} finding whose
+record was removed from \code{after} is still sited from \code{before}. Findings with
+no site by either route are labelled \code{NO_SITE} so they are never silently
+dropped from the split.
+
+\item \code{finding_group_labels()}: Group labels for each finding row, one column per grouping variable
+
+Calls \code{\link[=resolve_finding_sites]{resolve_finding_sites()}} once per grouping column, so every level is
+resolved the same way: from the finding's own column when it has one,
+otherwise from the snapshot(s) by record id.
+
+\item \code{nonempty_checks()}: Drop checks with no findings
+
+Empty checks get no worksheet, matching the delivered DVR (an all-clear check
+is not a blank tab). The names are preserved for the checks that remain.
+
+}}
 \examples{
 data <- data.frame(id = 1:3, weight_kg = c(65, 999, 70))
 dvp <- function(data) {
   list(weight_range = data[data$weight_kg > 300, ])
 }
 run_dvp(dvp, data)
+before <- data.frame(id = 1:3, weight_kg = c(65, 999, 70))
+after  <- data.frame(id = 1:3, weight_kg = c(65, 72, 70))
+dvp <- function(data) {
+  list(weight_range = data[data$weight_kg > 300, ])
+}
+compare_dvp(dvp, before, after)
 }

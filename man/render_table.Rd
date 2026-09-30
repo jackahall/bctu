@@ -2,7 +2,12 @@
 % Please edit documentation in R/report_helpers.R
 \name{render_table}
 \alias{render_table}
-\title{Render a data frame as a report table for an Rmd}
+\alias{indent}
+\alias{n_pct}
+\alias{col_widths}
+\alias{grid_table}
+\alias{banner_row}
+\title{Tables for Rmd reports}
 \usage{
 render_table(
   df,
@@ -13,12 +18,21 @@ render_table(
   bold_rows = NULL,
   bold_headings = TRUE
 )
+
+indent(x, levels = 1L)
+
+n_pct(n, N, digits = 0L)
+
+col_widths(df, caps)
+
+grid_table(df, widths, span_rows = NULL, levels = 1L)
+
+banner_row(template, text)
 }
 \arguments{
-\item{df}{A data frame.}
+\item{df}{A data frame of character cells.}
 
-\item{caps}{Maximum column widths in characters (see \code{\link[=col_widths]{col_widths()}}).
-Default 44 for the first column and 20 for the rest.}
+\item{caps}{Maximum width: one number for every column, or one per column.}
 
 \item{caption}{Optional table caption.}
 
@@ -34,11 +48,51 @@ every column, for example the primary outcome row of an outcome table.}
 
 \item{bold_headings}{When \code{TRUE} (default), unindented rows of an indented
 table are shown in bold. Set \code{FALSE} to bold only \code{bold_rows}.}
+
+\item{x}{A character vector.}
+
+\item{levels}{Number of leading label columns (default 1, no hierarchy).}
+
+\item{n}{Numerator counts.}
+
+\item{N}{Denominator counts. Where \code{N} is 0 the result is \code{"n/N"} with no
+percentage.}
+
+\item{digits}{Decimal places for the percentage. Default 0.}
+
+\item{widths}{Column widths in characters, one per column (see
+\code{\link[=col_widths]{col_widths()}}).}
+
+\item{span_rows}{\code{NULL}, or a logical vector with one value per row: rows
+marked \code{TRUE} are rendered as one full-width cell holding the text of
+the first column.}
+
+\item{template}{A data frame whose columns the row copies.}
+
+\item{text}{The banner text.}
 }
 \value{
-A single string holding the table (and caption).
+\code{render_table()}: \code{render_table()}: A single string holding the table (and caption).
+
+\code{indent()}: \code{x} with the indentation prefixed.
+
+\code{n_pct()}: A character vector.
+
+\code{col_widths()}: An integer vector of widths, one per column.
+
+\code{grid_table()}: A single string holding the grid table.
+
+\code{banner_row()}: A one-row data frame of character columns.
 }
 \description{
+Helpers for tables written straight into an Rmd report: \code{render_table()}
+turns a data frame into a pandoc grid table for a \code{results = "asis"} chunk,
+and the other functions build its pieces.
+}
+\section{Functions}{
+\itemize{
+\item \code{render_table()}: Tables for Rmd reports
+
 Converts a data frame to a pandoc grid table ready for \code{cat()} in a chunk
 with \code{results = "asis"}. Cells are converted to text with \code{NA} shown blank,
 and a leading \code{-}, \code{+} or \code{*} is escaped so pandoc does not read it as a
@@ -47,9 +101,50 @@ indent level becomes a column of its own: a label is merged rightwards
 over the deeper label columns, and a deeper label sits in its own column
 beneath. Unindented rows are shown in bold, and those with no values in
 the other columns become full-width banner rows.
-}
+
+\item \code{indent()}: Indent table text with non-breaking spaces
+
+Prefixes text with four non-breaking spaces per level. Pandoc and
+\code{strwrap()} strip ordinary leading spaces, so indentation made of plain
+spaces disappears in a rendered table; non-breaking spaces survive.
+
+\item \code{n_pct()}: Format counts as "n/N (p\%)"
+
+\item \code{col_widths()}: Column widths for a grid table
+
+Each column is as wide as its longest header or cell line (cells may hold
+several lines separated by \code{"\\n"}), kept between 8 characters and the cap.
+
+\item \code{grid_table()}: Build a pandoc grid table from a data frame
+
+Renders a data frame of character cells as a pandoc grid table. Cell text
+is wrapped to the column width; a \code{"\\n"} in a cell starts a new paragraph
+within the cell. The header row is the column names. A column whose
+wrapped text has a word longer than its width is widened to fit it.
+The first \code{levels} columns form a label hierarchy. In each row the first
+non-empty label cell is merged rightwards over the remaining label
+columns, so a deeper label sits in a later column under a merged parent.
+The header of the hierarchy is the first column name, merged over all
+label columns.
+
+\item \code{banner_row()}: A banner row for a report table
+
+A one-row data frame with the same columns as \code{template}, holding \code{text}
+in the first column and blanks elsewhere. \code{\link[=render_table]{render_table()}} renders such a
+row as a full-width bold banner when the table has indented rows.
+
+}}
 \examples{
 tab <- data.frame(Characteristic = c("Sex", indent(c("Male", "Female"))),
                   Total = c("", n_pct(c(6, 4), c(10, 10))))
 cat(render_table(tab, caption = "Baseline characteristics"))
+indent("Male")
+indent("Aged 65 or over", levels = 2)
+n_pct(c(3, 0), c(12, 0))
+n_pct(5, 7, digits = 1)
+col_widths(data.frame(Group = c("A", "B"), n = c("10", "12")), caps = 20)
+df <- data.frame(Group = c("A", "B"), n = c("10", "12"))
+cat(grid_table(df, widths = col_widths(df, caps = 20)))
+tab <- data.frame(Characteristic = indent("Male"), Total = "10")
+rbind(banner_row(tab, "Sex"), tab)
 }

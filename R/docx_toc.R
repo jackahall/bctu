@@ -28,7 +28,7 @@
 #'
 #' @param document The document.xml text.
 #' @return The document.xml text.
-#' @keywords internal
+#' @noRd
 populate_toc <- function(document) {
   field <- regexpr('<w:p>(?:(?!</w:p>).)*<w:instrText[^>]*>\\s*TOC \\\\o &quot;1-([0-9])&quot;.*?</w:p>', document, perl = TRUE)
   if (field == -1L) return(document)
@@ -62,7 +62,7 @@ populate_toc <- function(document) {
 #' @param document The document.xml text.
 #' @param depth The deepest heading level to include.
 #' @return A data frame: `level`, `bookmark`, `number`, `title`.
-#' @keywords internal
+#' @noRd
 toc_headings <- function(document, depth) {
   pattern <- paste0('<w:bookmarkStart w:id="[0-9]+" w:name="([^"]+)"\\s*/>\\s*',
                     '<w:p><w:pPr><w:pStyle w:val="Heading([1-', depth, '])"\\s*/></w:pPr>(.*?)</w:p>')

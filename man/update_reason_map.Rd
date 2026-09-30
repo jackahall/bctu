@@ -2,31 +2,73 @@
 % Please edit documentation in R/reason_maps.R
 \name{update_reason_map}
 \alias{update_reason_map}
-\title{Add new raw reasons to a reason map CSV}
+\alias{squash_text}
+\alias{map_clean}
+\title{Reason maps: clean free-text reasons through a CSV}
 \usage{
 update_reason_map(path, keys, verbose = 2L)
+
+squash_text(x)
+
+map_clean(keys, map)
 }
 \arguments{
 \item{path}{Path to the reason map CSV. Its folder is created if needed.}
 
-\item{keys}{A data frame of key columns, for example one column \code{raw}, or
-\code{category} and \code{raw}. The last column holds the raw text.}
+\item{keys}{A data frame of key columns, as passed to
+\code{\link[=update_reason_map]{update_reason_map()}}.}
 
 \item{verbose}{Verbosity: \code{0} silent, \code{1} or more reports the number of
 rows added and the file path.}
+
+\item{x}{A character vector.}
+
+\item{map}{A reason map, as returned by \code{\link[=update_reason_map]{update_reason_map()}}.}
 }
 \value{
-The full reason map as a data frame of character columns.
+\code{update_reason_map()}: \code{update_reason_map()}: The full reason map as a data frame of character columns.
+
+\code{squash_text()}: A character vector the same length as \code{x}.
+
+\code{map_clean()}: A character vector with one value per row of \code{keys}.
 }
 \description{
+A reason map is a CSV mapping raw free-text reasons (for example withdrawal
+reasons) to hand-cleaned text. \code{update_reason_map()} keeps the CSV in step
+with the data, \code{map_clean()} applies it, and \code{squash_text()} normalises
+whitespace first.
+}
+\section{Functions}{
+\itemize{
+\item \code{update_reason_map()}: Reason maps: clean free-text reasons through a CSV
+
 A reason map is a CSV file with one row per distinct raw reason (the key
 columns) and a \code{clean} column holding the hand-cleaned text. This reads the
 map at \code{path} (or starts an empty one), appends a row with a blank \code{clean}
 value for every key row not already in it, writes the file back and returns
 the full map. Existing rows and their \code{clean} values are kept as they are.
 Fill in the blank \code{clean} cells by hand, then use \code{\link[=map_clean]{map_clean()}}.
-}
+
+\item \code{squash_text()}: Collapse whitespace in free text
+
+Replaces every run of whitespace (spaces, tabs, line breaks) with a single
+space and trims both ends. \code{NA} stays \code{NA}.
+
+\item \code{map_clean()}: Look up cleaned reasons in a reason map
+
+Matches each row of \code{keys} to the reason map on the key columns and
+returns the map's \code{clean} text. Where the map has no row for a key, or its
+\code{clean} cell is blank, the raw text (the last key column) is returned
+unchanged.
+
+}}
 \examples{
 path <- file.path(tempdir(), "withdrawal_reasons.csv")
 update_reason_map(path, data.frame(raw = c("moved away", "too busy")))
+squash_text("  Moved\r\n away  from   area ")
+path <- file.path(tempdir(), "withdrawal_reasons.csv")
+keys <- data.frame(raw = c("moved away", "too busy"))
+map <- update_reason_map(path, keys)
+map$clean[1] <- "Relocated"
+map_clean(keys, map)
 }

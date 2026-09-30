@@ -14,20 +14,28 @@
 # numbers are always retrievable for checking with `report_table_data()`.
 
 # --- constructor -----------------------------------------------------------
-#' Build a format-agnostic report table
+#' Report tables
+#'
+#' A report table describes a table once, keeping the original data types, and
+#' renders as a pandoc grid table in every output format. The numbers behind a
+#' table are always retrievable with `report_table_data()`.
+#' @name report_table
+NULL
+
+#' @describeIn report_table Report tables
 #'
 #' Returns a single structured object that the grid-table renderer consumes for
 #' every output format (Word and PDF), so a table is described once and
 #' rendered the same way everywhere. The body data keeps its original types, so
 #' the exact numbers behind the report are always retrievable with
 #' [report_table_data()].
-#'
+#' @order 1
 #' @param data A data frame: the body of the table (one row per table row).
 #' @param columns Which columns to show and their headings. One of:
-#'   * `NULL` (default) — show every column of `data`, heading = column name;
-#'   * a character vector of column names — show those columns, in that order,
+#'   * `NULL` (default): show every column of `data`, heading = column name;
+#'   * a character vector of column names: show those columns, in that order,
 #'     heading = column name;
-#'   * a *named* character vector — names are columns of `data`, values are the
+#'   * a *named* character vector: names are columns of `data`, values are the
 #'     headings shown in the table.
 #' @param caption Optional table caption (a single string).
 #' @param group_headers Optional spanning headers shown above the column
@@ -41,7 +49,7 @@
 #' @param align Optional column alignment: a character vector, one of
 #'   `"left"`, `"right"`, `"center"` per displayed column. If `NULL` (default),
 #'   numeric columns are right-aligned and all others left-aligned.
-#' @return A `bctu_report_table` object.
+#' @return `report_table()`: `report_table()`: A `bctu_report_table` object.
 #' @examples
 #' data <- data.frame(id = 1:3, age = c(45, 62, 38), sex = c("F", "M", "F"))
 #' report_table(data, caption = "Baseline characteristics")
@@ -77,12 +85,12 @@ report_table <- function(data,
   )
 }
 
-#' The underlying (unformatted) data behind a report table
+#' @describeIn report_table The underlying (unformatted) data behind a report table
 #'
 #' Returns the exact body data frame, in its original types, so QC can check the
 #' real numbers rather than re-parsing rendered text.
 #' @param x A `bctu_report_table`.
-#' @return A data frame (the displayed columns, original types).
+#' @return `report_table_data()`: A data frame (the displayed columns, original types).
 #' @export
 report_table_data <- function(x) {
   if (!inherits(x, "bctu_report_table"))
@@ -104,7 +112,7 @@ print.bctu_report_table <- function(x, ...) {
 
 # --- column / header / banner resolution -----------------------------------
 #' Resolve the `columns`/`align` arguments into a tidy column specification
-#' @keywords internal
+#' @noRd
 resolve_table_columns <- function(data, columns, align) {
   if (is.null(columns)) {
     name  <- names(data)
@@ -146,7 +154,7 @@ resolve_table_columns <- function(data, columns, align) {
 }
 
 #' Normalise the `group_headers` argument into a data frame of label + span
-#' @keywords internal
+#' @noRd
 normalise_group_headers <- function(group_headers, n_columns) {
   if (is.null(group_headers)) return(NULL)
   if (is.numeric(group_headers)) {
@@ -170,7 +178,7 @@ normalise_group_headers <- function(group_headers, n_columns) {
 }
 
 #' Normalise the `banner_rows` argument into a data frame of label + after
-#' @keywords internal
+#' @noRd
 normalise_banner_rows <- function(banner_rows, n_rows) {
   if (is.null(banner_rows)) return(NULL)
   if (is.list(banner_rows) && !is.data.frame(banner_rows)) {
@@ -189,7 +197,7 @@ normalise_banner_rows <- function(banner_rows, n_rows) {
 
 # --- shared cell formatting ------------------------------------------------
 #' Format one body column to display strings (numbers kept readable, NA blank)
-#' @keywords internal
+#' @noRd
 format_table_column <- function(col) {
   out <- if (is.numeric(col)) format(col, trim = TRUE, justify = "none")
          else as.character(col)
@@ -198,7 +206,7 @@ format_table_column <- function(col) {
 }
 
 #' The body as a character matrix of display strings (shared by all renderers)
-#' @keywords internal
+#' @noRd
 report_table_display_body <- function(x) {
   cells <- lapply(x$columns$name, function(nm) format_table_column(x$body[[nm]]))
   m <- matrix(unlist(cells, use.names = FALSE),
@@ -216,10 +224,9 @@ report_table_display_body <- function(x) {
 # headers and banners are rendered as spanning cells (pandoc treats a content
 # row that omits the internal `|` as a cell spanning those columns).
 
-#' Render a report table as a pandoc grid table (every output format)
-#'
+#' @describeIn report_table Render a report table as a pandoc grid table (every output format)
 #' @param x A `bctu_report_table`.
-#' @return A single string containing the pandoc grid table (and its caption).
+#' @return `render_table_markdown()`: A single string containing the pandoc grid table (and its caption).
 #' @examples
 #' data <- data.frame(id = 1:3, age = c(45, 62, 38))
 #' tbl <- report_table(data, caption = "Baseline characteristics")
@@ -309,14 +316,14 @@ render_table_markdown <- function(x) {
   table
 }
 
-#' Alias of [render_table_markdown()] naming the grid-table target explicitly
+#' @describeIn report_table Alias of [render_table_markdown()] naming the grid-table target explicitly
 #' @param x A `bctu_report_table`.
-#' @return A pandoc grid table string.
+#' @return `render_table_gridtable()`: A pandoc grid table string.
 #' @export
 render_table_gridtable <- function(x) render_table_markdown(x)
 
 #' A grid-table border line (`+---+`); alignment colons on the `=` header line
-#' @keywords internal
+#' @noRd
 grid_border_line <- function(widths, char, aligns = NULL) {
   segs <- vapply(seq_along(widths), function(j) {
     seg <- strrep(char, widths[j] + 2L)
@@ -335,7 +342,7 @@ grid_border_line <- function(widths, char, aligns = NULL) {
 #' Collapses embedded newlines to a space (a raw newline would split a cell
 #' across grid-table lines without a border) and backslash-escapes "|" (a
 #' literal pipe inside a cell would read as a spurious column boundary).
-#' @keywords internal
+#' @noRd
 escape_grid_text <- function(text) {
   text <- as.character(text)
   text <- gsub("\r\n|\r|\n", " ", text)
@@ -366,7 +373,7 @@ escape_grid_text <- function(text) {
 }
 
 #' A grid-table content line, supporting cells that span several columns
-#' @keywords internal
+#' @noRd
 grid_content_line <- function(segments, widths) {
   out <- "|"
   col <- 1L
@@ -387,7 +394,7 @@ grid_content_line <- function(segments, widths) {
 #' align or centre it in the source) puts leading spaces in the cell, and four
 #' or more turn the cell into an indented code block. Column alignment is
 #' carried by the colon markers on the header border line, not by padding.
-#' @keywords internal
+#' @noRd
 pad_text <- function(text, width) {
   text <- as.character(text)
   paste0(text, strrep(" ", max(0L, width - nchar(text))))

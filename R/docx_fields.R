@@ -26,7 +26,7 @@
 #' @param xml The header or footer part text.
 #' @param document The document.xml text the `STYLEREF` fields refer to.
 #' @return The part text with the field results written.
-#' @keywords internal
+#' @noRd
 fill_running_fields <- function(xml, document) {
   positions <- gregexpr("<w:r(?: [^>]*)?>(?:(?!</w:r>).)*</w:r>", xml, perl = TRUE)[[1]]
   if (positions[1] == -1L) return(xml)

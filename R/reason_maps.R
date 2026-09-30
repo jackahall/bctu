@@ -10,13 +10,12 @@
 #                                                                              #
 ################################################################################
 
-#' Collapse whitespace in free text
+#' @describeIn update_reason_map Collapse whitespace in free text
 #'
 #' Replaces every run of whitespace (spaces, tabs, line breaks) with a single
 #' space and trims both ends. `NA` stays `NA`.
-#'
 #' @param x A character vector.
-#' @return A character vector the same length as `x`.
+#' @return `squash_text()`: A character vector the same length as `x`.
 #' @examples
 #' squash_text("  Moved\r\n away  from   area ")
 #' @export
@@ -29,7 +28,7 @@ squash_text <- function(x) {
 #' `NA` keys match as blank text.
 #' @param keys A data frame of key columns.
 #' @return A character vector with one value per row.
-#' @keywords internal
+#' @noRd
 reason_map_row_keys <- function(keys) {
   cols <- lapply(keys, function(col) {
     out <- as.character(col)
@@ -39,7 +38,16 @@ reason_map_row_keys <- function(keys) {
   do.call(paste, c(unname(cols), sep = "\u001f"))
 }
 
-#' Add new raw reasons to a reason map CSV
+#' Reason maps: clean free-text reasons through a CSV
+#'
+#' A reason map is a CSV mapping raw free-text reasons (for example withdrawal
+#' reasons) to hand-cleaned text. `update_reason_map()` keeps the CSV in step
+#' with the data, `map_clean()` applies it, and `squash_text()` normalises
+#' whitespace first.
+#' @name update_reason_map
+NULL
+
+#' @describeIn update_reason_map Reason maps: clean free-text reasons through a CSV
 #'
 #' A reason map is a CSV file with one row per distinct raw reason (the key
 #' columns) and a `clean` column holding the hand-cleaned text. This reads the
@@ -47,13 +55,13 @@ reason_map_row_keys <- function(keys) {
 #' value for every key row not already in it, writes the file back and returns
 #' the full map. Existing rows and their `clean` values are kept as they are.
 #' Fill in the blank `clean` cells by hand, then use [map_clean()].
-#'
+#' @order 1
 #' @param path Path to the reason map CSV. Its folder is created if needed.
 #' @param keys A data frame of key columns, for example one column `raw`, or
 #'   `category` and `raw`. The last column holds the raw text.
 #' @param verbose Verbosity: `0` silent, `1` or more reports the number of
 #'   rows added and the file path.
-#' @return The full reason map as a data frame of character columns.
+#' @return `update_reason_map()`: `update_reason_map()`: The full reason map as a data frame of character columns.
 #' @examples
 #' path <- file.path(tempdir(), "withdrawal_reasons.csv")
 #' update_reason_map(path, data.frame(raw = c("moved away", "too busy")))
@@ -97,17 +105,16 @@ update_reason_map <- function(path, keys, verbose = 2L) {
   map
 }
 
-#' Look up cleaned reasons in a reason map
+#' @describeIn update_reason_map Look up cleaned reasons in a reason map
 #'
 #' Matches each row of `keys` to the reason map on the key columns and
 #' returns the map's `clean` text. Where the map has no row for a key, or its
 #' `clean` cell is blank, the raw text (the last key column) is returned
 #' unchanged.
-#'
 #' @param keys A data frame of key columns, as passed to
 #'   [update_reason_map()].
 #' @param map A reason map, as returned by [update_reason_map()].
-#' @return A character vector with one value per row of `keys`.
+#' @return `map_clean()`: A character vector with one value per row of `keys`.
 #' @examples
 #' path <- file.path(tempdir(), "withdrawal_reasons.csv")
 #' keys <- data.frame(raw = c("moved away", "too busy"))

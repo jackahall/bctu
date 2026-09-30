@@ -15,10 +15,10 @@
 # provenance manifest (`report-manifest.yml`).
 
 # --- section content objects -----------------------------------------------
-#' A heading section
+#' @describeIn bctu_report A heading section
 #' @param text Heading text.
 #' @param level Heading level (1 = top). Default 1.
-#' @return A `bctu_report_heading` section object.
+#' @return `report_heading()`: A `bctu_report_heading` section object.
 #' @examples
 #' report_heading("Baseline characteristics", level = 2)
 #' @export
@@ -30,9 +30,9 @@ report_heading <- function(text, level = 1L) {
             class = c("bctu_report_heading", "bctu_report_section"))
 }
 
-#' A paragraph (markdown/plain text) section
+#' @describeIn bctu_report A paragraph (markdown/plain text) section
 #' @param text Paragraph text (markdown is allowed).
-#' @return A `bctu_report_paragraph` section object.
+#' @return `report_paragraph()`: A `bctu_report_paragraph` section object.
 #' @examples
 #' report_paragraph("This section summarises baseline characteristics.")
 #' @export
@@ -42,7 +42,7 @@ report_paragraph <- function(text) {
             class = c("bctu_report_paragraph", "bctu_report_section"))
 }
 
-#' A figure section (from an image file or a ggplot object)
+#' @describeIn bctu_report A figure section (from an image file or a ggplot object)
 #'
 #' Supply either a `path` to an existing image, or a `plot` object (for example
 #' a ggplot), which is saved to a PNG when the report is rendered.
@@ -51,7 +51,7 @@ report_paragraph <- function(text) {
 #' @param caption Optional caption.
 #' @param width Display width as a fraction of the text width (0-1). Default 0.8.
 #' @param dpi Resolution used when saving a `plot`. Default 150.
-#' @return A `bctu_report_figure` section object.
+#' @return `report_figure()`: A `bctu_report_figure` section object.
 #' @examples
 #' report_figure(path = "baseline-histogram.png", caption = "Age at baseline")
 #' @export
@@ -67,16 +67,25 @@ report_figure <- function(path = NULL, plot = NULL, caption = NULL,
 }
 
 # --- the report spec -------------------------------------------------------
-#' Assemble a report from explicit sections
+#' Reports assembled from sections
+#'
+#' A report is assembled from explicit section objects (headings, paragraphs,
+#' tables and figures) and rendered to Word or PDF with a provenance manifest.
+#' Nothing is read from the global environment.
+#' @name bctu_report
+NULL
+
+#' @describeIn bctu_report Reports assembled from sections
 #'
 #' The report is defined entirely by the objects you pass in; nothing is read
 #' from the global environment, so a report is reproducible and unit-testable.
+#' @order 1
 #' @param title The report title (a single string).
 #' @param sections An ordered, named list of section objects: [report_heading()],
 #'   [report_paragraph()], a [report_table()], or [report_figure()].
 #' @param meta Optional named list of extra metadata to record (for example the
 #'   author or trial name); stored with the report and written to the manifest.
-#' @return A `bctu_report` object.
+#' @return `bctu_report()`: `bctu_report()`: A `bctu_report` object.
 #' @examples
 #' bctu_report(
 #'   title = "Baseline Report",
@@ -112,13 +121,12 @@ print.bctu_report <- function(x, ...) {
 }
 
 # --- rendering -------------------------------------------------------------
-#' Render a report to files, with a provenance manifest
+#' @describeIn bctu_report Render a report to files, with a provenance manifest
 #'
 #' Renders the report to each requested format in `output_dir`, copies the whole
 #' bundle to any `extra_destinations`, and writes a human-readable provenance
 #' manifest (`report-manifest.yml`) recording the snapshot, data-cut date, tool
 #' versions, template identity, and the SHA-256 of every output file.
-#'
 #' @param report A `bctu_report` from [bctu_report()].
 #' @param output_dir Directory to render into (created if needed).
 #' @param formats Output formats: any of `"docx"`, `"pdf"`. Default both.
@@ -142,14 +150,14 @@ print.bctu_report <- function(x, ...) {
 #' @param title_page Build the styled BCTU title page in the DOCX output (the
 #'   bundled `title_page.lua` filter: trial name, registration, report type,
 #'   a metadata table, and a Word TOC when `toc = TRUE`), from the report's
-#'   `meta` (see [title_page_metadata_yaml()] for the mapping)? Default
+#'   `meta` (see `title_page_metadata_yaml()` for the mapping)? Default
 #'   `NULL`: on when `meta` is non-empty. With no explicit `template`, the
 #'   bundled BCTU reference document supplies the styles the title page
 #'   targets. PDF output is unaffected.
 #' @param extra_destinations Optional character vector of directories to also
 #'   copy the whole rendered bundle into.
 #' @param verbose Verbosity.
-#' @return Invisibly, a list describing the render (output paths and manifest).
+#' @return `render_report()`: Invisibly, a list describing the render (output paths and manifest).
 #' @examples
 #' \dontrun{
 #' report <- bctu_report(
@@ -263,7 +271,7 @@ render_report <- function(report, output_dir,
 }
 
 #' Run pandoc for one output format
-#' @keywords internal
+#' @noRd
 run_pandoc <- function(pandoc, md_path, out_path, fmt, template,
                        toc = FALSE, number_sections = FALSE,
                        lua_filter = NULL) {
@@ -305,7 +313,7 @@ run_pandoc <- function(pandoc, md_path, out_path, fmt, template,
 #' @param toc Request the Word table of contents?
 #' @param toc_depth TOC depth (default 3, the original template's default).
 #' @return A character vector of YAML lines.
-#' @keywords internal
+#' @noRd
 title_page_metadata_yaml <- function(report, toc = FALSE, toc_depth = 3L) {
   meta <- report$meta
   named <- c(trial = "trial-short-name", trial_long_name = "trial-long-name",
@@ -326,7 +334,7 @@ title_page_metadata_yaml <- function(report, toc = FALSE, toc_depth = 3L) {
 }
 
 #' Assemble the full pandoc-markdown document for one format
-#' @keywords internal
+#' @noRd
 build_report_markdown <- function(report, format, assets_dir,
                                   orientation = "portrait", margin = "1in",
                                   title_page_yaml = NULL) {
@@ -347,7 +355,7 @@ build_report_markdown <- function(report, format, assets_dir,
 }
 
 #' Render one section to markdown (one pipeline for every output format)
-#' @keywords internal
+#' @noRd
 render_section <- function(section, assets_dir, index) {
   if (inherits(section, "bctu_report_table"))
     return(render_table_markdown(section))
@@ -359,7 +367,7 @@ render_section <- function(section, assets_dir, index) {
 }
 
 #' Render a figure section (saving a plot object to PNG if needed)
-#' @keywords internal
+#' @noRd
 render_figure_section <- function(fig, assets_dir, index) {
   path <- fig$path
   if (is.null(path)) {
@@ -381,7 +389,7 @@ render_figure_section <- function(fig, assets_dir, index) {
 
 # --- provenance manifest ---------------------------------------------------
 #' Build the provenance manifest for a rendered report
-#' @keywords internal
+#' @noRd
 build_report_manifest <- function(report, outputs, snapshot, template,
                                    formats, bctu_version, now, render_seconds,
                                    layout = NULL) {
@@ -441,7 +449,7 @@ build_report_manifest <- function(report, outputs, snapshot, template,
 }
 
 #' First line of a command-line tool's version output
-#' @keywords internal
+#' @noRd
 tool_version <- function(cmd, flag) {
   exe <- Sys.which(cmd)
   if (!nzchar(exe)) return("not found")
@@ -452,7 +460,7 @@ tool_version <- function(cmd, flag) {
 
 # --- small helpers ---------------------------------------------------------
 #' A filesystem-safe slug from a title (lowercase, dashes, no punctuation)
-#' @keywords internal
+#' @noRd
 make_filename_slug <- function(title) {
   s <- tolower(title)
   s <- gsub("[^a-z0-9]+", "-", s)
@@ -461,7 +469,7 @@ make_filename_slug <- function(title) {
 }
 
 #' Quote a string for a YAML metadata value
-#' @keywords internal
+#' @noRd
 yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 
 # ---------------------------------------------------------------------------
@@ -470,6 +478,15 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 
 #' BCTU trial report Word output format
 #'
+#' The `bctu::trial_report` rmarkdown output format renders a BCTU trial report
+#' to Word with the bundled reference document, title page, running header and
+#' footer, landscape sections and numbered captions. The other functions size
+#' figures, theme the document and repair or inspect the rendered file.
+#' @name trial_report
+NULL
+
+#' @describeIn trial_report BCTU trial report Word output format
+#'
 #' An [rmarkdown::word_document()] output format for BCTU trial reports. It
 #' uses the bundled BCTU `reference.docx` (styles, running header and footer,
 #' logo) and the bundled `title_page.lua` pandoc filter, which builds the
@@ -477,15 +494,12 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #' turns `::: landscape` fenced divs into landscape sections, numbers
 #' figure and table captions above their content, and styles a `::: footnote`
 #' fenced div placed straight after a table as that table's footnote block.
-#'
 #' Declare the format in the YAML header of an `.Rmd` and render it with
 #' [rmarkdown::render()]:
-#'
 #' \preformatted{
 #' output:
 #'   bctu::trial_report: default
 #' }
-#'
 #' `theme` in the YAML header restyles the document. Its keys are the
 #' elements of [report_theme()], which inherit from one another (set
 #' `colour.accent` and every rule, border and header fill follows; set one
@@ -493,7 +507,6 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #' template default: UoB gold accents, Arial at 11 pt, the title acronym in
 #' Times New Roman. The same colours and fonts can be changed afterwards in
 #' Word under Design.
-#'
 #' \preformatted{
 #' theme:
 #'   colour.accent: "C59A00"
@@ -501,7 +514,6 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #'   font.body: "Arial"
 #'   font.size: 11
 #' }
-#'
 #' The title-page filter reads these YAML keys (pandoc's own `title`,
 #' `author` and `date` are not used):
 #' * `trial-short-name`, `trial-long-name`, `trial-registration`,
@@ -513,10 +525,9 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #'   table of contents;
 #' * `confidential`: text for a confidentiality page, centred on a page of
 #'   its own after the title page. Omit the key for no such page.
-#'
 #' In RStudio, **File > New File > R Markdown > From Template > "BCTU trial
 #' report (Word)"** opens a skeleton with every key filled in.
-#'
+#' @order 1
 #' @section Styles:
 #' Every style in the template is reachable from the Rmd through pandoc's
 #' `custom-style` attribute, by style name: a fenced div
@@ -536,8 +547,7 @@ yaml_quote <- function(s) paste0("\"", gsub("\"", "\\\\\"", s), "\"")
 #' @param ... Arguments passed to [rmarkdown::word_document()]. Any
 #'   `pandoc_args` are appended after the bundled Lua filter. A
 #'   `reference_docx` replaces the bundled BCTU template, with a warning.
-#' @return An rmarkdown output format object.
-#' @seealso [fig_portrait()] for the figure-size chunk templates.
+#' @return `trial_report()`: `trial_report()`: An rmarkdown output format object.
 #' @export
 trial_report <- function(template = "bctu", ...) {
   if (!requireNamespace("rmarkdown", quietly = TRUE))
@@ -568,14 +578,13 @@ trial_report <- function(template = "bctu", ...) {
   format
 }
 
-#' Standard figure sizes for BCTU trial reports
+#' @describeIn trial_report Standard figure sizes for BCTU trial reports
 #'
 #' Full-width portrait and landscape figure sizes for A4 paper with 1 inch
 #' margins. When bctu is loaded they are registered as the knitr chunk
 #' templates `"fig_portrait"` and `"fig_landscape"`, used in a chunk header as
 #' `opts.label = "fig_landscape"`.
-#'
-#' @return A named list of knitr chunk options (`fig.width`, `fig.height`,
+#' @return `fig_portrait()`: A named list of knitr chunk options (`fig.width`, `fig.height`,
 #'   `out.width`).
 #' @examples
 #' fig_portrait()
@@ -585,7 +594,7 @@ fig_portrait <- function() {
   list(fig.width = 6.25, fig.height = 7, out.width = "6.25in")
 }
 
-#' @rdname fig_portrait
+#' @rdname trial_report
 #' @export
 fig_landscape <- function() {
   list(fig.width = 9.5, fig.height = 5, out.width = "9.5in")

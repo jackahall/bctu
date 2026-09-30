@@ -2,7 +2,13 @@
 % Please edit documentation in R/sources.R
 \name{redcap_request}
 \alias{redcap_request}
-\title{Build a REDCap API request (POST, x-www-form-urlencoded)}
+\alias{redcap_perform}
+\alias{redcap_metadata}
+\alias{redcap_field_names}
+\alias{redcap_parse_records}
+\alias{redcap_apply_labels}
+\alias{redcap_type_empty_columns}
+\title{REDCap API helpers}
 \usage{
 redcap_request(
   url,
@@ -12,11 +18,28 @@ redcap_request(
   report_id = NULL,
   extra = list()
 )
+
+redcap_perform(req, what = "REDCap request")
+
+redcap_metadata(url, token)
+
+redcap_field_names(url, token)
+
+redcap_parse_records(csv_text)
+
+redcap_apply_labels(records, dictionary, field_names = NULL)
+
+redcap_type_empty_columns(
+  records,
+  dictionary,
+  field_names = NULL,
+  labelled = TRUE
+)
 }
 \arguments{
 \item{url}{REDCap API URL.}
 
-\item{token}{Resolved API token (secret).}
+\item{token}{Resolved API token.}
 
 \item{content}{REDCap \code{content}, e.g. \code{"record"}, \code{"report"}, \code{"metadata"},
 \code{"exportFieldNames"}.}
@@ -26,11 +49,80 @@ redcap_request(
 \item{report_id}{Report id (required when \code{content = "report"}).}
 
 \item{extra}{Named list of extra API parameters.}
+
+\item{req}{An \code{httr2} request.}
+
+\item{what}{Short description for error messages.}
+
+\item{csv_text}{CSV text as returned by the REDCap API.}
+
+\item{records}{Records data frame.}
+
+\item{dictionary}{REDCap data dictionary data frame.}
+
+\item{field_names}{Optional REDCap field-name export (see
+\code{\link[=redcap_apply_labels]{redcap_apply_labels()}}).}
+
+\item{labelled}{Type coded fields (radio, dropdown, yesno, checkbox) as
+haven-style labelled vectors? When \code{FALSE} they take the type of their
+codes.}
 }
 \value{
-An \code{httr2} request.
+\code{redcap_request()}: \code{redcap_request()}: An \code{httr2} request.
+
+\code{redcap_perform()}: The response body as a string.
+
+\code{redcap_metadata()}: A data frame (the data dictionary).
+
+\code{redcap_field_names()}: A data frame mapping fields to exported column names.
+
+\code{redcap_parse_records()}: A data frame of records.
+
+\code{redcap_apply_labels()}: \code{records} with labels applied where possible.
+
+\code{redcap_type_empty_columns()}: \code{records} with its empty columns typed.
 }
 \description{
+Building blocks of the REDCap datasource: request construction, error
+handling, dictionary and field-name fetches, record parsing and value
+labelling. Use them for a custom REDCap source or to inspect a project.
+}
+\section{Functions}{
+\itemize{
+\item \code{redcap_request()}: REDCap API helpers
+
 Factored out of the fetch closure so the request can be inspected in tests
 without hitting a live server.
-}
+
+\item \code{redcap_perform()}: Perform a REDCap request with a plain-English error and an error-body guard
+
+REDCap can return HTTP 200 with an error payload (e.g. a bad token) rather than
+a non-2xx status. This performs the request (requiring \code{httr2}), turns network
+failures into an actionable message, and rejects an error body so it can never
+be snapshotted as data.
+
+\item \code{redcap_metadata()}: Fetch and parse the REDCap data dictionary (\code{content = "metadata"})
+
+\item \code{redcap_field_names()}: Fetch and parse REDCap export field names (\code{content = "exportFieldNames"})
+
+\item \code{redcap_parse_records()}: Parse a REDCap CSV records payload into a data frame
+
+\item \code{redcap_apply_labels()}: Apply REDCap value labels to coded fields (haven-style labelled vectors)
+
+Labels radio, dropdown and yesno fields from the data dictionary. Checkbox
+fields (which REDCap splits into multiple \code{field___code} columns) are left as
+raw 0/1 indicators. If the \code{haven} package is not installed, the records are
+returned unchanged with a warning.
+
+\item \code{redcap_type_empty_columns()}: Type the columns REDCap exported empty, from the data dictionary
+
+A field with no data anywhere in the extract arrives as an all-\code{NA} logical
+column, because the CSV reader has nothing to guess a type from. Once one
+value is entered the next extract reads the same field as a number, a date
+or a labelled code, so the column changes type between snapshots and any
+before/after comparison of it fails. This gives every empty column the type
+its dictionary entry implies, so a field's type does not depend on how much
+data has been entered. Columns the dictionary does not describe, and columns
+that already hold data, are left alone.
+
+}}

@@ -17,7 +17,17 @@
 # REDCap
 # ===========================================================================
 
-#' A REDCap datasource (one table: the exported records)
+#' Data sources: REDCap, SQL Server, example and custom
+#'
+#' A datasource declares where trial data comes from and how to fetch it.
+#' Credentials are never stored on the object: `token_id` names a
+#' [credential_spec()] that is resolved at fetch time.
+#' `datasource_redcap_bctu()`, `datasource_redcap_itm()` and
+#' `datasource_redcap_annex()` fill in the API url of a BCTU REDCap server.
+#' @name datasource_redcap
+NULL
+
+#' @describeIn datasource_redcap Data sources: REDCap, SQL Server, example and custom
 #'
 #' Exports records from a REDCap project over its API and returns them as a
 #' single-table snapshot. When `report_id` is given, a saved REDCap report is
@@ -25,15 +35,13 @@
 #' export field names are fetched alongside the records and attached to the
 #' records data frame as attributes (`redcap_dictionary`, `redcap_field_names`)
 #' so downstream steps can label or reshape the data.
-#'
 #' The API token is never passed here. Declare where it lives with `token_id`
 #' (a [credential_spec()] keyed on that id, expecting the 32-character REDCap
 #' token) and the resolver reads it from the keyring or environment at fetch
 #' time.
-#'
 #' Datetimes are returned exactly as REDCap sends them (text); no timezone is
 #' guessed or applied.
-#'
+#' @order 1
 #' @param token_id Logical credential name for the REDCap API token (resolved
 #'   via [credential_spec()] / [resolve_credentials()]). REDCap tokens are 32
 #'   characters.
@@ -52,8 +60,7 @@
 #' @param name Optional snapshot/label name; defaults to `"redcap"`.
 #' @param ... Extra REDCap API parameters passed on the record/report export
 #'   (e.g. `rawOrLabel`, `exportDataAccessGroups`, `filterLogic`).
-#' @return A `datasource` object.
-#' @seealso [datasource_sql()], [special_missing()], [take_snapshot()]
+#' @return `datasource_redcap()`: `datasource_redcap()`: A `datasource` object.
 #' @examples
 #' \dontrun{
 #' ds <- datasource_redcap(
@@ -117,7 +124,40 @@ datasource_redcap <- function(token_id, url, report_id = NULL, labelled = TRUE,
                  label = name %||% paste0("REDCap ", url))
 }
 
-#' Perform a REDCap request with a plain-English error and an error-body guard
+#' @describeIn datasource_redcap The BCTU REDCap server,
+#'   `https://bctu-redcap.bham.ac.uk/api/`.
+#' @export
+datasource_redcap_bctu <- function(token_id, report_id = NULL, labelled = TRUE,
+                                   missing_codes = NULL, service = "bctu_api_token",
+                                   name = NULL, ...) {
+  datasource_redcap(token_id, url = "https://bctu-redcap.bham.ac.uk/api/",
+                    report_id = report_id, labelled = labelled,
+                    missing_codes = missing_codes, service = service, name = name, ...)
+}
+
+#' @describeIn datasource_redcap The ITM REDCap server,
+#'   `https://itm-redcap.bham.ac.uk/api/`.
+#' @export
+datasource_redcap_itm <- function(token_id, report_id = NULL, labelled = TRUE,
+                                  missing_codes = NULL, service = "bctu_api_token",
+                                  name = NULL, ...) {
+  datasource_redcap(token_id, url = "https://itm-redcap.bham.ac.uk/api/",
+                    report_id = report_id, labelled = labelled,
+                    missing_codes = missing_codes, service = service, name = name, ...)
+}
+
+#' @describeIn datasource_redcap The BCTU annex REDCap server,
+#'   `https://bctu-annex.redcap.bham.ac.uk/api/`.
+#' @export
+datasource_redcap_annex <- function(token_id, report_id = NULL, labelled = TRUE,
+                                    missing_codes = NULL, service = "bctu_api_token",
+                                    name = NULL, ...) {
+  datasource_redcap(token_id, url = "https://bctu-annex.redcap.bham.ac.uk/api/",
+                    report_id = report_id, labelled = labelled,
+                    missing_codes = missing_codes, service = service, name = name, ...)
+}
+
+#' @describeIn redcap_request Perform a REDCap request with a plain-English error and an error-body guard
 #'
 #' REDCap can return HTTP 200 with an error payload (e.g. a bad token) rather than
 #' a non-2xx status. This performs the request (requiring `httr2`), turns network
@@ -125,7 +165,7 @@ datasource_redcap <- function(token_id, url, report_id = NULL, labelled = TRUE,
 #' be snapshotted as data.
 #' @param req An `httr2` request.
 #' @param what Short description for error messages.
-#' @return The response body as a string.
+#' @return `redcap_perform()`: The response body as a string.
 #' @export
 redcap_perform <- function(req, what = "REDCap request") {
   if (!requireNamespace("httr2", quietly = TRUE))
@@ -141,7 +181,7 @@ redcap_perform <- function(req, what = "REDCap request") {
   body
 }
 
-#' @keywords internal
+#' @noRd
 redcap_guard_body <- function(body, what) {
   head <- trimws(substr(body, 1L, 64L))
   if (grepl('^\\{\\s*"error"', head) || grepl('^\\{\\s*\\047error\\047', head)) {
@@ -153,10 +193,19 @@ redcap_guard_body <- function(body, what) {
   invisible(body)
 }
 
-#' Build a REDCap API request (POST, x-www-form-urlencoded)
+#' REDCap API helpers
+#'
+#' Building blocks of the REDCap datasource: request construction, error
+#' handling, dictionary and field-name fetches, record parsing and value
+#' labelling. Use them for a custom REDCap source or to inspect a project.
+#' @name redcap_request
+NULL
+
+#' @describeIn redcap_request REDCap API helpers
 #'
 #' Factored out of the fetch closure so the request can be inspected in tests
 #' without hitting a live server.
+#' @order 1
 #' @param url REDCap API URL.
 #' @param token Resolved API token (secret).
 #' @param content REDCap `content`, e.g. `"record"`, `"report"`, `"metadata"`,
@@ -164,7 +213,7 @@ redcap_guard_body <- function(body, what) {
 #' @param format Export format; default `"csv"`.
 #' @param report_id Report id (required when `content = "report"`).
 #' @param extra Named list of extra API parameters.
-#' @return An `httr2` request.
+#' @return `redcap_request()`: `redcap_request()`: An `httr2` request.
 #' @export
 redcap_request <- function(url, token, content = "record", format = "csv",
                            report_id = NULL, extra = list()) {
@@ -185,29 +234,29 @@ redcap_request <- function(url, token, content = "record", format = "csv",
   do.call(httr2::req_body_form, c(list(req), body))
 }
 
-#' Fetch and parse the REDCap data dictionary (`content = "metadata"`)
+#' @describeIn redcap_request Fetch and parse the REDCap data dictionary (`content = "metadata"`)
 #' @param url REDCap API URL.
 #' @param token Resolved API token.
-#' @return A data frame (the data dictionary).
+#' @return `redcap_metadata()`: A data frame (the data dictionary).
 #' @export
 redcap_metadata <- function(url, token) {
   redcap_read_csv(redcap_perform(redcap_request(url, token, content = "metadata"),
                                  "REDCap metadata export"))
 }
 
-#' Fetch and parse REDCap export field names (`content = "exportFieldNames"`)
+#' @describeIn redcap_request Fetch and parse REDCap export field names (`content = "exportFieldNames"`)
 #' @param url REDCap API URL.
 #' @param token Resolved API token.
-#' @return A data frame mapping fields to exported column names.
+#' @return `redcap_field_names()`: A data frame mapping fields to exported column names.
 #' @export
 redcap_field_names <- function(url, token) {
   redcap_read_csv(redcap_perform(redcap_request(url, token, content = "exportFieldNames"),
                                  "REDCap field-names export"))
 }
 
-#' Parse a REDCap CSV records payload into a data frame
+#' @describeIn redcap_request Parse a REDCap CSV records payload into a data frame
 #' @param csv_text CSV text as returned by the REDCap API.
-#' @return A data frame of records.
+#' @return `redcap_parse_records()`: A data frame of records.
 #' @export
 redcap_parse_records <- function(csv_text) {
   redcap_read_csv(csv_text)
@@ -222,7 +271,7 @@ redcap_parse_records <- function(csv_text) {
 #' @param csv_text The export body.
 #' @param as_character Read every column as character?
 #' @return A data frame.
-#' @keywords internal
+#' @noRd
 redcap_read_csv <- function(csv_text, as_character = FALSE) {
   if (!nzchar(csv_text)) return(data.frame())
   if (as_character)
@@ -237,7 +286,7 @@ redcap_read_csv <- function(csv_text, as_character = FALSE) {
                     na.strings = c("", "NA"))
 }
 
-#' Apply REDCap value labels to coded fields (haven-style labelled vectors)
+#' @describeIn redcap_request Apply REDCap value labels to coded fields (haven-style labelled vectors)
 #'
 #' Labels radio, dropdown and yesno fields from the data dictionary. Checkbox
 #' fields (which REDCap splits into multiple `field___code` columns) are left as
@@ -249,7 +298,7 @@ redcap_read_csv <- function(csv_text, as_character = FALSE) {
 #'   with `original_field_name` and `export_field_name` columns; required to
 #'   label checkbox columns, whose exported names (`field___N`) differ from
 #'   their dictionary field name.
-#' @return `records` with labels applied where possible.
+#' @return `redcap_apply_labels()`: `records` with labels applied where possible.
 #' @export
 redcap_apply_labels <- function(records, dictionary, field_names = NULL) {
   if (is.null(dictionary) || !nrow(dictionary)) return(records)
@@ -290,7 +339,7 @@ redcap_apply_labels <- function(records, dictionary, field_names = NULL) {
   records
 }
 
-#' @keywords internal
+#' @noRd
 redcap_parse_choices <- function(spec) {
   if (is.null(spec) || is.na(spec) || !nzchar(spec)) return(NULL)
   parts <- trimws(strsplit(spec, "\\|", fixed = FALSE)[[1]])
@@ -300,7 +349,7 @@ redcap_parse_choices <- function(spec) {
   data.frame(code = trimws(code), label = label, stringsAsFactors = FALSE)
 }
 
-#' @keywords internal
+#' @noRd
 redcap_labelled <- function(x, choices) {
   numeric_codes <- suppressWarnings(!any(is.na(as.numeric(choices$code))))
   if (numeric_codes) {
@@ -323,7 +372,7 @@ redcap_labelled <- function(x, choices) {
 #' @param field_names Optional REDCap field-name export with
 #'   `original_field_name` and `export_field_name` columns.
 #' @return A data frame with `original_field_name` and `export_field_name`.
-#' @keywords internal
+#' @noRd
 redcap_export_field_map <- function(dictionary, field_names = NULL) {
   if (!is.null(field_names) &&
       all(c("original_field_name", "export_field_name") %in% names(field_names)))
@@ -342,7 +391,7 @@ redcap_export_field_map <- function(dictionary, field_names = NULL) {
 #' @param validation A `text_validation_type_or_show_slider_number` value.
 #' @param n Column length.
 #' @return A length-`n` vector of `NA`s of that type.
-#' @keywords internal
+#' @noRd
 redcap_empty_typed_column <- function(validation, n) {
   v <- if (is.null(validation) || is.na(validation)) "" else as.character(validation)
   if (grepl("^(integer|number)", v)) rep(NA_real_, n)
@@ -351,7 +400,7 @@ redcap_empty_typed_column <- function(validation, n) {
   else rep(NA_character_, n)
 }
 
-#' Type the columns REDCap exported empty, from the data dictionary
+#' @describeIn redcap_request Type the columns REDCap exported empty, from the data dictionary
 #'
 #' A field with no data anywhere in the extract arrives as an all-`NA` logical
 #' column, because the CSV reader has nothing to guess a type from. Once one
@@ -368,7 +417,7 @@ redcap_empty_typed_column <- function(validation, n) {
 #' @param labelled Type coded fields (radio, dropdown, yesno, checkbox) as
 #'   haven-style labelled vectors? When `FALSE` they take the type of their
 #'   codes.
-#' @return `records` with its empty columns typed.
+#' @return `redcap_type_empty_columns()`: `records` with its empty columns typed.
 #' @export
 redcap_type_empty_columns <- function(records, dictionary, field_names = NULL,
                                       labelled = TRUE) {
@@ -416,7 +465,7 @@ redcap_type_empty_columns <- function(records, dictionary, field_names = NULL,
 # SQL Server (multi-table)
 # ===========================================================================
 
-#' Describe an ODBC connection to a SQL Server
+#' @describeIn datasource_redcap Describe an ODBC connection to a SQL Server
 #'
 #' Captures the full ODBC connection surface so nothing is silently dropped
 #' (the old package dropped auth, port and extra parameters). Values left `NULL`
@@ -430,8 +479,7 @@ redcap_type_empty_columns <- function(records, dictionary, field_names = NULL,
 #' @param encoding Client character encoding.
 #' @param trust_server_certificate Trust the server TLS certificate (`TRUE`/`FALSE`).
 #' @param extra Named list of any additional ODBC keywords, passed through verbatim.
-#' @return An `sql_connection` object.
-#' @seealso [datasource_sql()]
+#' @return `sql_connection()`: An `sql_connection` object.
 #' @export
 sql_connection <- function(driver = "ODBC Driver 18 for SQL Server",
                            uid = NULL, pwd = NULL, port = NULL,
@@ -445,7 +493,7 @@ sql_connection <- function(driver = "ODBC Driver 18 for SQL Server",
             class = "sql_connection")
 }
 
-#' A SQL Server datasource (multiple tables/views)
+#' @describeIn datasource_redcap A SQL Server datasource (multiple tables/views)
 #'
 #' Connects to a SQL Server database and loads a set of tables or views into a
 #' named list of data frames (a multi-table snapshot). The table set is either
@@ -453,21 +501,17 @@ sql_connection <- function(driver = "ODBC Driver 18 for SQL Server",
 #' returning object names in its first column, e.g.
 #' `"SELECT name FROM sys.views WHERE name LIKE 'vw%'"`); each discovered object
 #' is then loaded with `SELECT * FROM <name>` (the name quoted as an identifier).
-#'
 #' The full ODBC connection surface is honoured via [sql_connection()]. To test
 #' or use a non-SQL-Server backend, inject a different DBI `connector` (the
 #' driver object) and `connect_args`; by default the connector is
 #' `odbc::odbc()` and the connection arguments are built from `server`,
 #' `database` and `conn`.
-#'
 #' Datetimes are returned exactly as the database driver yields them; bctu does
 #' not silently coerce timezones (a known GMT/BST trap). Apply an explicit
 #' timezone in your analysis if the DB column is timezone-naive.
-#'
 #' If any requested object loads as something other than a data frame (a view
 #' whose SQL errored can arrive as a character error message), the fetch aborts
 #' loudly naming the offending object rather than snapshotting the error.
-#'
 #' @param server SQL Server host (or instance).
 #' @param database Database name.
 #' @param tables Optional character vector of table/view names to load.
@@ -483,8 +527,7 @@ sql_connection <- function(driver = "ODBC Driver 18 for SQL Server",
 #'   use verbatim with `connector`, bypassing the ODBC argument builder.
 #' @param name Optional snapshot/label name; defaults to `database`.
 #' @param ... Reserved for future use.
-#' @return A `datasource` object.
-#' @seealso [sql_connection()], [datasource_redcap()], [take_snapshot()]
+#' @return `datasource_sql()`: A `datasource` object.
 #' @examples
 #' \dontrun{
 #' ds <- datasource_sql(
@@ -543,11 +586,19 @@ datasource_sql <- function(server, database, tables = NULL, views_query = NULL,
                  label = name %||% paste0(database, " @ ", server))
 }
 
-#' Build the ODBC `DBI::dbConnect()` argument list from an sql_connection
+#' SQL Server helpers
+#'
+#' Building blocks of the SQL Server datasource: ODBC arguments, object
+#' discovery and per-object reads.
+#' @name sql_odbc_arguments
+NULL
+
+#' @describeIn sql_odbc_arguments SQL Server helpers
+#' @order 1
 #' @param server SQL Server host.
 #' @param database Database name.
 #' @param conn An [sql_connection()].
-#' @return A named list of connection arguments.
+#' @return `sql_odbc_arguments()`: `sql_odbc_arguments()`: A named list of connection arguments.
 #' @export
 sql_odbc_arguments <- function(server, database, conn) {
   yes_no <- function(v) if (isTRUE(v)) "yes" else "no"
@@ -561,12 +612,12 @@ sql_odbc_arguments <- function(server, database, conn) {
   c(args, conn$extra)
 }
 
-#' Run a discovery query and return the object names in its first column
+#' @describeIn sql_odbc_arguments Run a discovery query and return the object names in its first column
 #' @param con A DBI connection.
 #' @param views_query Discovery SQL.
 #' @param include Optional regex to subset the names.
 #' @param verbose Verbosity.
-#' @return A character vector of object names.
+#' @return `sql_discover_objects()`: A character vector of object names.
 #' @export
 sql_discover_objects <- function(con, views_query, include = NULL, verbose = 2L) {
   if (!is_string(views_query))
@@ -581,13 +632,13 @@ sql_discover_objects <- function(con, views_query, include = NULL, verbose = 2L)
   found
 }
 
-#' Load one object with a quoted `SELECT * FROM <name>`
+#' @describeIn sql_odbc_arguments Load one object with a quoted `SELECT * FROM <name>`
 #'
 #' The name is quoted as an SQL identifier (never interpolated raw). On a query
 #' error the object name is included in the message.
 #' @param con A DBI connection.
 #' @param name Object (table/view) name.
-#' @return A data frame.
+#' @return `sql_read_object()`: A data frame.
 #' @export
 sql_read_object <- function(con, name) {
   query <- paste0("SELECT * FROM ", DBI::dbQuoteIdentifier(con, name))
@@ -599,13 +650,13 @@ sql_read_object <- function(con, name) {
   )
 }
 
-#' Guard: every loaded object must be a data frame (CRCTU expect.dataframes)
+#' @describeIn sql_odbc_arguments Guard: every loaded object must be a data frame (CRCTU expect.dataframes)
 #'
 #' A view whose SQL errored can come back as a character error string rather
 #' than a table. This aborts loudly, naming the offending objects, so an error
 #' message is never silently snapshotted as data.
 #' @param tables A named list of loaded objects.
-#' @return `tables`, invisibly, if all are data frames.
+#' @return `sql_guard_dataframes()`: `tables`, invisibly, if all are data frames.
 #' @export
 sql_guard_dataframes <- function(tables) {
   ok <- vapply(tables, is.data.frame, logical(1))
@@ -620,5 +671,5 @@ sql_guard_dataframes <- function(tables) {
 # Small shared helper
 # ===========================================================================
 
-#' @keywords internal
+#' @noRd
 drop_null <- function(x) x[!vapply(x, is.null, logical(1))]

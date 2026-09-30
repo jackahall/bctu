@@ -11,7 +11,7 @@
 #                                                                              #
 ################################################################################
 
-#' Check the page layout of a rendered report
+#' @describeIn trial_report Check the page layout of a rendered report
 #'
 #' Converts the docx to PDF with LibreOffice (`soffice` on the PATH, or the
 #' path in `options(bctu.soffice = )`) and reads it page by page with
@@ -20,10 +20,9 @@
 #' than `sparse` lines of body text. LibreOffice is a proxy for Word: it
 #' ignores keep-with-next before a table and substitutes fonts, so a flagged
 #' caption whose docx carries the keep flags may be its artefact.
-#'
 #' @param path Path to the docx.
 #' @param sparse Pages with fewer body lines than this are reported.
-#' @return A data frame with one row per finding: `page`, `orientation`,
+#' @return `check_report_layout()`: A data frame with one row per finding: `page`, `orientation`,
 #'   `lines`, `issue` and `first` (the first body line). Zero rows means no
 #'   finding. `NULL`, with a message, when LibreOffice or pdftotext is not
 #'   available.

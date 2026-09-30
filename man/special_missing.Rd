@@ -2,15 +2,28 @@
 % Please edit documentation in R/missing.R
 \name{special_missing}
 \alias{special_missing}
+\alias{apply_special_missing}
 \title{Declare missing-data codes and the special-missing tags they map to}
 \usage{
 special_missing(...)
+
+apply_special_missing(records, mapping = NULL, verbose = 1L)
 }
 \arguments{
 \item{...}{One or more \code{CODE ~ "tag"} formulas.}
+
+\item{records}{A data frame, read with every column as character.}
+
+\item{mapping}{A \code{\link[=special_missing]{special_missing()}} mapping, or \code{NULL} (returns \code{records}
+type-converted).}
+
+\item{verbose}{Verbosity.}
 }
 \value{
-A \code{bctu_special_missing} mapping (a data frame of \code{code} and \code{tag}).
+\code{special_missing()}: A \code{bctu_special_missing} mapping (a data frame of \code{code} and \code{tag}).
+
+\code{apply_special_missing()}: \code{records} with natural column types and tagged-NA special missings,
+carrying the mapping as \code{attr(., "bctu_special_missing")}.
 }
 \description{
 Each argument is a formula \code{CODE ~ "tag"} mapping a REDCap (or other) missing
@@ -18,6 +31,18 @@ code to a single lowercase letter \code{a}-\code{z}. The left side may be writte
 (\code{UNK ~ "a"}) or quoted (\code{"UNK" ~ "a"}). The tag becomes a native special
 missing value in exports: Stata \code{.a} and SAS \code{.A}.
 }
+\section{Functions}{
+\itemize{
+\item \code{apply_special_missing()}: Apply a missing-data code mapping to a character data frame
+
+For each column, cells whose (trimmed) value is a declared code are removed and
+the remaining values are type-converted exactly as a CSV reader would, so the
+column recovers its natural type. Numeric columns then carry the codes as haven
+tagged NAs; non-numeric columns keep the code text (character) or drop it to a
+plain NA (date fields), with a warning, because special missing values are a
+numeric-only concept.
+
+}}
 \examples{
 special_missing(UNK ~ "a", OTH ~ "b", NASK ~ "c")
 }

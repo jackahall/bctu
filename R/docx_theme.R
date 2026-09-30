@@ -35,7 +35,7 @@ REPORT_TEMPLATES <- list(
 #' @param name The template name, one of `names(REPORT_TEMPLATES)`.
 #' @return The template's list, with `resources` set to its folder and
 #'   `elements` to its theme registry.
-#' @keywords internal
+#' @noRd
 report_template <- function(name = "bctu") {
   spec <- REPORT_TEMPLATES[[name]]
   if (is.null(spec))
@@ -46,7 +46,7 @@ report_template <- function(name = "bctu") {
   spec
 }
 
-#' The styles a report template offers
+#' @describeIn trial_report The styles a report template offers
 #'
 #' Every paragraph, character and table style in the template's reference
 #' document, by the name pandoc's `custom-style` attribute uses. In an Rmd,
@@ -54,9 +54,8 @@ report_template <- function(name = "bctu") {
 #' paragraph style and `[text]{custom-style="Section Number"}` applies a
 #' character style, so any style in the template can be reached without
 #' editing it.
-#'
 #' @param template The template name, see [trial_report()].
-#' @return A data frame with `type`, `name` and `id`, in template order.
+#' @return `report_styles()`: A data frame with `type`, `name` and `id`, in template order.
 #' @examples
 #' head(report_styles())
 #' @export
@@ -95,14 +94,13 @@ THEME_ELEMENTS <- list(
   font.size             = list(default = 11, size = TRUE)
 )
 
-#' Theme a BCTU trial report
+#' @describeIn trial_report Theme a BCTU trial report
 #'
 #' Builds a theme for [trial_report()] in the style of [ggplot2::theme()]:
 #' every argument is one element of the Word template, elements inherit
 #' from one another, and anything not given keeps the template default.
 #' The same theme can be written in the YAML header under `theme:`, with
 #' the element names as keys.
-#'
 #' @param colour.accent The accent colour every other colour inherits from
 #'   (UoB gold, `"C59A00"`).
 #' @param rule.colour The title-page and running-header rules and the
@@ -120,7 +118,7 @@ THEME_ELEMENTS <- list(
 #' @param font.code The code typeface (Consolas).
 #' @param font.size The body size in points (11); every size in the
 #'   template scales with it.
-#' @return A `report_theme` object: a named list of the elements given.
+#' @return `report_theme()`: A `report_theme` object: a named list of the elements given.
 #' @examples
 #' report_theme(colour.accent = "#0057BF")
 #' report_theme(rule.colour = "0057BF", table.header.fill = "F5EDD4", font.size = 10)
@@ -138,7 +136,7 @@ report_theme <- function(colour.accent = NULL, rule.colour = NULL, table.border.
 #' @param x A named list, such as the parsed YAML `theme` key, a
 #'   `report_theme`, or `NULL` for the defaults.
 #' @return A `report_theme`.
-#' @keywords internal
+#' @noRd
 as_report_theme <- function(x) {
   if (is.null(x)) return(report_theme())
   if (inherits(x, "report_theme")) return(x)
@@ -157,7 +155,7 @@ as_report_theme <- function(x) {
 #'
 #' @param theme A `report_theme`.
 #' @return A named list with one value per element of `THEME_ELEMENTS`.
-#' @keywords internal
+#' @noRd
 resolve_theme <- function(theme) {
   values <- list()
   for (name in names(THEME_ELEMENTS)) {
@@ -188,7 +186,7 @@ normalise_hex <- function(x) {
 #' @param hex A six-digit hex colour.
 #' @param amount The share of the way to white, 0 to 1.
 #' @return A six-digit hex colour.
-#' @keywords internal
+#' @noRd
 tint <- function(hex, amount) {
   rgb <- grDevices::col2rgb(paste0("#", normalise_hex(hex)))
   toupper(sub("^#", "", grDevices::rgb(t(round(rgb + (255 - rgb) * amount)), maxColorValue = 255)))

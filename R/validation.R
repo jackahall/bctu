@@ -39,7 +39,7 @@
 # constructor. `passed` drives the overall verdict; `status` is the display
 # label; `fatal` marks a check that MUST pass for the machine to qualify.
 # ---------------------------------------------------------------------------
-#' @keywords internal
+#' @noRd
 setup_check_row <- function(check, status, detail, fatal, passed) {
   data.frame(check = check, status = status, detail = detail,
              fatal = fatal, passed = passed, stringsAsFactors = FALSE)
@@ -47,7 +47,7 @@ setup_check_row <- function(check, status, detail, fatal, passed) {
 
 # --- small, explicitly-named toolchain probes ------------------------------
 #' First line of a program's version output, or NA if it is not on the PATH
-#' @keywords internal
+#' @noRd
 program_version_line <- function(program, version_args = "--version") {
   bin <- Sys.which(program)
   if (!nzchar(bin)) return(NA_character_)
@@ -60,7 +60,7 @@ program_version_line <- function(program, version_args = "--version") {
 }
 
 #' Pandoc version as a plain "X.Y.Z" string, or NA if pandoc is absent
-#' @keywords internal
+#' @noRd
 pandoc_version_string <- function() {
   if (requireNamespace("rmarkdown", quietly = TRUE)) {
     v <- tryCatch(as.character(rmarkdown::pandoc_version()),
@@ -73,7 +73,7 @@ pandoc_version_string <- function() {
 }
 
 #' Installed version of a package as a string, or NA if it is not installed
-#' @keywords internal
+#' @noRd
 installed_version_or_na <- function(package) {
   if (requireNamespace(package, quietly = TRUE))
     as.character(utils::packageVersion(package))
@@ -82,7 +82,7 @@ installed_version_or_na <- function(package) {
 }
 
 # --- the individual checks -------------------------------------------------
-#' @keywords internal
+#' @noRd
 check_r_version <- function() {
   ok <- getRversion() >= "4.1.0"
   setup_check_row(
@@ -96,7 +96,7 @@ check_r_version <- function() {
     fatal = TRUE, passed = ok)
 }
 
-#' @keywords internal
+#' @noRd
 check_hard_dependencies <- function() {
   deps <- c("cli", "digest", "yaml")
   rows <- lapply(deps, function(pkg) {
@@ -114,7 +114,7 @@ check_hard_dependencies <- function() {
   do.call(rbind, rows)
 }
 
-#' @keywords internal
+#' @noRd
 check_rendering_toolchain <- function(formats) {
   rows <- list()
   # pandoc is needed for every requested output format.
@@ -151,7 +151,7 @@ check_rendering_toolchain <- function(formats) {
   do.call(rbind, rows)
 }
 
-#' @keywords internal
+#' @noRd
 check_suggested_packages <- function() {
   # Integration packages needed for specific tasks; informational, never fatal.
   purposes <- c(
@@ -180,7 +180,7 @@ check_suggested_packages <- function() {
   do.call(rbind, rows)
 }
 
-#' @keywords internal
+#' @noRd
 check_snapshot_store_writable <- function(store) {
   resolved <- store
   if (is.null(resolved))
@@ -213,7 +213,7 @@ check_snapshot_store_writable <- function(store) {
     fatal = TRUE, passed = ok)
 }
 
-#' @keywords internal
+#' @noRd
 check_git_available <- function() {
   gv <- program_version_line("git")
   ok <- !is.na(gv)
@@ -227,7 +227,7 @@ check_git_available <- function() {
     fatal = FALSE, passed = ok)
 }
 
-#' @keywords internal
+#' @noRd
 check_required_credentials <- function(require_credentials) {
   if (is.null(require_credentials)) return(NULL)
   if (inherits(require_credentials, "credential_spec"))
@@ -261,7 +261,7 @@ check_required_credentials <- function(require_credentials) {
 #'
 #' Returns `NULL` (never errors) when renv is not installed or no lockfile is
 #' active, so the caller can omit the field rather than record a placeholder.
-#' @keywords internal
+#' @noRd
 renv_lockfile_hash <- function() {
   if (!requireNamespace("renv", quietly = TRUE)) return(NULL)
   lockfile <- tryCatch(renv::paths$lockfile(), error = function(e) NA_character_)
@@ -270,7 +270,7 @@ renv_lockfile_hash <- function() {
            error = function(e) NULL)
 }
 
-#' @keywords internal
+#' @noRd
 capture_setup_environment <- function(formats) {
   hard_deps <- c("cli", "digest", "yaml")
   dep_versions <- stats::setNames(
@@ -297,7 +297,7 @@ capture_setup_environment <- function(formats) {
 }
 
 # --- printing (IQ-style table) ----------------------------------------------
-#' @keywords internal
+#' @noRd
 print_qualification_table <- function(checks) {
   width_check  <- max(nchar(c("Check", checks$check)))
   width_status <- max(nchar(c("Result", checks$status)))
@@ -318,7 +318,16 @@ print_qualification_table <- function(checks) {
 # ---------------------------------------------------------------------------
 # check_setup(): the one obvious call to qualify a machine (layer a).
 # ---------------------------------------------------------------------------
-#' Check this machine is correctly set up to use bctu (installation qualification)
+#' Setup check and qualification records
+#'
+#' `check_setup()` checks that R, the required packages, the rendering
+#' toolchain, the snapshot store and credentials are in place, and
+#' `write_setup_report()` records the result as an installation-qualification
+#' artefact.
+#' @name check_setup
+NULL
+
+#' @describeIn check_setup Setup check and qualification records
 #'
 #' Runs a battery of named installation-qualification (IQ) checks, prints an
 #' IQ-style table (Check / Result / Detail) with an overall PASS or FAIL, and
@@ -331,13 +340,12 @@ print_qualification_table <- function(checks) {
 #' render probe and R reference checks are a documented future item, not current
 #' behaviour. The approach is informed by the R Foundation regulatory document
 #' R-FDA.pdf and the marcschwartz/R-IQ-OQ tooling.
-#'
 #' Formal validation of the bctu package itself is done separately with the
 #' pharmaR `valtools` package at release time (requirements, test cases,
 #' traceability matrix, validation report), and dependency risk is scored with
 #' pharmaR `riskmetric` via [package_risk_report()]. bctu does not recreate
 #' those frameworks; `check_setup()` is only the installation IQ.
-#'
+#' @order 1
 #' @param store Optional snapshot store directory to test writing to. If `NULL`
 #'   (the default), the store is resolved from the current bctu project; if no
 #'   project marker is found the store check is reported as an informational skip
@@ -351,7 +359,7 @@ print_qualification_table <- function(checks) {
 #'   the secret value is never resolved into output, printed, or returned.
 #' @param verbose `2` prints the full table and the overall verdict (default),
 #'   `1` prints only the overall verdict, `0` prints nothing.
-#' @return Invisibly, a `bctu_setup_qualification` list with `ok` (overall pass),
+#' @return `check_setup()`: `check_setup()`: Invisibly, a `bctu_setup_qualification` list with `ok` (overall pass),
 #'   `checks` (a data frame of every check), `environment` (the captured
 #'   environment), `formats`, and `time`.
 #' @examples
@@ -421,7 +429,7 @@ print.bctu_setup_qualification <- function(x, ...) {
 # ---------------------------------------------------------------------------
 # write_setup_report(): the archivable IQ artefact (YAML).
 # ---------------------------------------------------------------------------
-#' Write a setup-qualification record as a YAML IQ artefact
+#' @describeIn check_setup Write a setup-qualification record as a YAML IQ artefact
 #'
 #' Writes the result of [check_setup()] to a human-readable and machine-readable
 #' YAML file (schema `bctu-setup-qualification/1`): a timestamp, the overall
@@ -429,11 +437,10 @@ print.bctu_setup_qualification <- function(x, ...) {
 #' dependency versions, pandoc / xelatex / git versions, and session-level
 #' detail). This is the archivable installation-qualification artefact. No
 #' credential value is ever written.
-#'
 #' @param result A `bctu_setup_qualification` from [check_setup()]. Defaults to
 #'   running [check_setup()] silently.
 #' @param path Output file path. Default `"bctu-setup-qualification.yml"`.
-#' @return The absolute path of the written file, invisibly.
+#' @return `write_setup_report()`: The absolute path of the written file, invisibly.
 #' @examples
 #' \dontrun{
 #' write_setup_report(path = "bctu-setup-qualification.yml")
@@ -472,7 +479,7 @@ write_setup_report <- function(result = check_setup(verbose = 0L),
 # ---------------------------------------------------------------------------
 # package_risk_report(): thin wrapper over pharmaR riskmetric (layer c).
 # ---------------------------------------------------------------------------
-#' @keywords internal
+#' @noRd
 package_dependency_names <- function(path) {
   desc <- file.path(path, "DESCRIPTION")
   if (!file.exists(desc))
@@ -485,20 +492,18 @@ package_dependency_names <- function(path) {
   unique(names_only)
 }
 
-#' Score bctu's dependency risk with pharmaR riskmetric (dependency-risk layer)
+#' @describeIn check_setup Score bctu's dependency risk with pharmaR riskmetric (dependency-risk layer)
 #'
 #' A thin wrapper over the pharmaR / R Validation Hub `riskmetric` package. If
 #' `riskmetric` is installed, it assesses and scores each of the package's
 #' dependencies and returns a tidy risk summary. bctu does not recreate
 #' `riskmetric`; if it is not installed this errors with how to install it.
-#'
 #' Dependency risk is validation layer (c). Formal validation of bctu itself is
 #' layer (b), done with `valtools` at release time. The installation IQ is
 #' layer (a), [check_setup()].
-#'
 #' @param path Package root whose dependencies are scored. Default `"."`.
 #' @param ... Passed through to `riskmetric::pkg_assess()`.
-#' @return A tidy data frame of dependency risk scores.
+#' @return `package_risk_report()`: A tidy data frame of dependency risk scores.
 #' @examples
 #' \dontrun{
 #' package_risk_report(path = ".")

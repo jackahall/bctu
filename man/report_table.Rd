@@ -2,7 +2,10 @@
 % Please edit documentation in R/table.R
 \name{report_table}
 \alias{report_table}
-\title{Build a format-agnostic report table}
+\alias{report_table_data}
+\alias{render_table_markdown}
+\alias{render_table_gridtable}
+\title{Report tables}
 \usage{
 report_table(
   data,
@@ -12,16 +15,22 @@ report_table(
   banner_rows = NULL,
   align = NULL
 )
+
+report_table_data(x)
+
+render_table_markdown(x)
+
+render_table_gridtable(x)
 }
 \arguments{
 \item{data}{A data frame: the body of the table (one row per table row).}
 
 \item{columns}{Which columns to show and their headings. One of:
 \itemize{
-\item \code{NULL} (default) — show every column of \code{data}, heading = column name;
-\item a character vector of column names — show those columns, in that order,
+\item \code{NULL} (default): show every column of \code{data}, heading = column name;
+\item a character vector of column names: show those columns, in that order,
 heading = column name;
-\item a \emph{named} character vector — names are columns of \code{data}, values are the
+\item a \emph{named} character vector: names are columns of \code{data}, values are the
 headings shown in the table.
 }}
 
@@ -40,18 +49,47 @@ row number the banner follows (\code{0} = before the first row).}
 \item{align}{Optional column alignment: a character vector, one of
 \code{"left"}, \code{"right"}, \code{"center"} per displayed column. If \code{NULL} (default),
 numeric columns are right-aligned and all others left-aligned.}
+
+\item{x}{A \code{bctu_report_table}.}
 }
 \value{
-A \code{bctu_report_table} object.
+\code{report_table()}: \code{report_table()}: A \code{bctu_report_table} object.
+
+\code{report_table_data()}: A data frame (the displayed columns, original types).
+
+\code{render_table_markdown()}: A single string containing the pandoc grid table (and its caption).
+
+\code{render_table_gridtable()}: A pandoc grid table string.
 }
 \description{
+A report table describes a table once, keeping the original data types, and
+renders as a pandoc grid table in every output format. The numbers behind a
+table are always retrievable with \code{report_table_data()}.
+}
+\section{Functions}{
+\itemize{
+\item \code{report_table()}: Report tables
+
 Returns a single structured object that the grid-table renderer consumes for
 every output format (Word and PDF), so a table is described once and
 rendered the same way everywhere. The body data keeps its original types, so
 the exact numbers behind the report are always retrievable with
 \code{\link[=report_table_data]{report_table_data()}}.
-}
+
+\item \code{report_table_data()}: The underlying (unformatted) data behind a report table
+
+Returns the exact body data frame, in its original types, so QC can check the
+real numbers rather than re-parsing rendered text.
+
+\item \code{render_table_markdown()}: Render a report table as a pandoc grid table (every output format)
+
+\item \code{render_table_gridtable()}: Alias of \code{\link[=render_table_markdown]{render_table_markdown()}} naming the grid-table target explicitly
+
+}}
 \examples{
 data <- data.frame(id = 1:3, age = c(45, 62, 38), sex = c("F", "M", "F"))
 report_table(data, caption = "Baseline characteristics")
+data <- data.frame(id = 1:3, age = c(45, 62, 38))
+tbl <- report_table(data, caption = "Baseline characteristics")
+cat(render_table_markdown(tbl))
 }

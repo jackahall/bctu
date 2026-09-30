@@ -7,7 +7,7 @@
 count_by_month(dates, from = min(dates), to = max(dates))
 }
 \arguments{
-\item{dates}{A Date vector (or anything \code{\link[=as.Date]{as.Date()}} accepts).}
+\item{dates}{A Date vector (or anything \code{as.Date()} accepts).}
 
 \item{from}{First month to report. Default the earliest date.}
 

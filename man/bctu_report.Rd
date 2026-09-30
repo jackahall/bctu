@@ -2,9 +2,34 @@
 % Please edit documentation in R/report.R
 \name{bctu_report}
 \alias{bctu_report}
-\title{Assemble a report from explicit sections}
+\alias{report_heading}
+\alias{report_paragraph}
+\alias{report_figure}
+\alias{render_report}
+\title{Reports assembled from sections}
 \usage{
 bctu_report(title, sections, meta = list())
+
+report_heading(text, level = 1L)
+
+report_paragraph(text)
+
+report_figure(path = NULL, plot = NULL, caption = NULL, width = 0.8, dpi = 150)
+
+render_report(
+  report,
+  output_dir,
+  formats = c("docx", "pdf"),
+  snapshot = NULL,
+  template = NULL,
+  orientation = c("portrait", "landscape"),
+  margin = "1in",
+  toc = FALSE,
+  number_sections = FALSE,
+  title_page = NULL,
+  extra_destinations = NULL,
+  verbose = 2L
+)
 }
 \arguments{
 \item{title}{The report title (a single string).}
@@ -14,14 +39,103 @@ bctu_report(title, sections, meta = list())
 
 \item{meta}{Optional named list of extra metadata to record (for example the
 author or trial name); stored with the report and written to the manifest.}
+
+\item{text}{Paragraph text (markdown is allowed).}
+
+\item{level}{Heading level (1 = top). Default 1.}
+
+\item{path}{Path to an existing image file, or \code{NULL}.}
+
+\item{plot}{A plot object (for example a ggplot), or \code{NULL}.}
+
+\item{caption}{Optional caption.}
+
+\item{width}{Display width as a fraction of the text width (0-1). Default 0.8.}
+
+\item{dpi}{Resolution used when saving a \code{plot}. Default 150.}
+
+\item{report}{A \code{bctu_report} from \code{\link[=bctu_report]{bctu_report()}}.}
+
+\item{output_dir}{Directory to render into (created if needed).}
+
+\item{formats}{Output formats: any of \code{"docx"}, \code{"pdf"}. Default both.}
+
+\item{snapshot}{Optional \code{bctu_snapshot} (or a snapshot id string) the report
+is built from; recorded in the manifest for provenance. The manifest's
+\code{data_cut_date} is derived from the snapshot id's creation timestamp, not
+from any clinical data-cut field; it only coincides with the true clinical
+data-cut date if the snapshot was taken at the cut.}
+
+\item{template}{Optional path to a Word reference document (\code{.docx}) used for
+DOCX styling; its identity and SHA-256 are recorded. Applies to the DOCX
+output only; it is ignored (but still hashed into the manifest) when
+rendering PDF.}
+
+\item{orientation}{Page orientation for the PDF output: \code{"portrait"} (the
+default) or \code{"landscape"}. The DOCX orientation comes from the reference
+\code{template}, not from this argument.}
+
+\item{margin}{Page margin for the PDF output, as a LaTeX length string
+(default \code{"1in"}). Ignored for DOCX (the template governs).}
+
+\item{toc}{Include a table of contents (all formats)? Default \code{FALSE}.}
+
+\item{number_sections}{Number the section headings (all formats)? Default
+\code{FALSE}.}
+
+\item{title_page}{Build the styled BCTU title page in the DOCX output (the
+bundled \code{title_page.lua} filter: trial name, registration, report type,
+a metadata table, and a Word TOC when \code{toc = TRUE}), from the report's
+\code{meta} (see \code{title_page_metadata_yaml()} for the mapping)? Default
+\code{NULL}: on when \code{meta} is non-empty. With no explicit \code{template}, the
+bundled BCTU reference document supplies the styles the title page
+targets. PDF output is unaffected.}
+
+\item{extra_destinations}{Optional character vector of directories to also
+copy the whole rendered bundle into.}
+
+\item{verbose}{Verbosity.}
 }
 \value{
-A \code{bctu_report} object.
+\code{bctu_report()}: \code{bctu_report()}: A \code{bctu_report} object.
+
+\code{report_heading()}: A \code{bctu_report_heading} section object.
+
+\code{report_paragraph()}: A \code{bctu_report_paragraph} section object.
+
+\code{report_figure()}: A \code{bctu_report_figure} section object.
+
+\code{render_report()}: Invisibly, a list describing the render (output paths and manifest).
 }
 \description{
+A report is assembled from explicit section objects (headings, paragraphs,
+tables and figures) and rendered to Word or PDF with a provenance manifest.
+Nothing is read from the global environment.
+}
+\section{Functions}{
+\itemize{
+\item \code{bctu_report()}: Reports assembled from sections
+
 The report is defined entirely by the objects you pass in; nothing is read
 from the global environment, so a report is reproducible and unit-testable.
-}
+
+\item \code{report_heading()}: A heading section
+
+\item \code{report_paragraph()}: A paragraph (markdown/plain text) section
+
+\item \code{report_figure()}: A figure section (from an image file or a ggplot object)
+
+Supply either a \code{path} to an existing image, or a \code{plot} object (for example
+a ggplot), which is saved to a PNG when the report is rendered.
+
+\item \code{render_report()}: Render a report to files, with a provenance manifest
+
+Renders the report to each requested format in \code{output_dir}, copies the whole
+bundle to any \code{extra_destinations}, and writes a human-readable provenance
+manifest (\code{report-manifest.yml}) recording the snapshot, data-cut date, tool
+versions, template identity, and the SHA-256 of every output file.
+
+}}
 \examples{
 bctu_report(
   title = "Baseline Report",
@@ -30,4 +144,17 @@ bctu_report(
     text  = report_paragraph("This report summarises baseline data.")
   )
 )
+report_heading("Baseline characteristics", level = 2)
+report_paragraph("This section summarises baseline characteristics.")
+report_figure(path = "baseline-histogram.png", caption = "Age at baseline")
+\dontrun{
+report <- bctu_report(
+  title = "Baseline Report",
+  sections = list(
+    intro = report_heading("Introduction"),
+    text  = report_paragraph("This report summarises baseline data.")
+  )
+)
+render_report(report, output_dir = "reports", formats = "docx")
+}
 }

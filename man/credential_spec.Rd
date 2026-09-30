@@ -2,7 +2,9 @@
 % Please edit documentation in R/datasource.R
 \name{credential_spec}
 \alias{credential_spec}
-\title{Declare where a credential lives (never the secret itself)}
+\alias{resolve_credentials}
+\alias{has_credential}
+\title{Credentials: declare where a secret lives and resolve it}
 \usage{
 credential_spec(
   id,
@@ -11,6 +13,10 @@ credential_spec(
   expect_nchar = NULL,
   required = TRUE
 )
+
+resolve_credentials(spec, verbose = 1L)
+
+has_credential(spec)
 }
 \arguments{
 \item{id}{Logical credential name, e.g. \code{"ocean"}.}
@@ -23,13 +29,41 @@ credential_spec(
 \item{expect_nchar}{Optional exact expected length (e.g. REDCap tokens = 32).}
 
 \item{required}{Is the credential required? Default \code{TRUE}.}
+
+\item{spec}{A \code{\link[=credential_spec]{credential_spec()}}, or \code{NULL}.}
+
+\item{verbose}{Verbosity.}
 }
 \value{
-A \code{credential_spec}.
+\code{credential_spec()}: \code{credential_spec()}: A \code{credential_spec}.
+
+\code{resolve_credentials()}: The resolved secret (character), or \code{NULL}.
+
+\code{has_credential()}: \code{TRUE} if the credential resolves to a non-empty secret.
 }
 \description{
-Declare where a credential lives (never the secret itself)
+A credential spec names a secret (a token or password) and where it lives,
+in the keyring or an environment variable, without holding the secret
+itself. One resolver serves every lookup, so \code{has_credential()} and
+\code{resolve_credentials()} always agree.
 }
+\section{Functions}{
+\itemize{
+\item \code{credential_spec()}: Credentials: declare where a secret lives and resolve it
+
+\item \code{resolve_credentials()}: Resolve a credential: keyring, then env var; one documented precedence
+
+Precedence is keyring then environment variable. If both are set and differ,
+warns (a rotated env-var token silently shadowed by a stale keyring value is
+a data-integrity hazard). Returns the secret string, or \code{NULL}/errors per
+\code{required}.
+
+\item \code{has_credential()}: Is a credential resolvable? (shares the exact resolver, so it never disagrees)
+
+A read-only check: it never emits the keyring/env divergence warning that
+\code{\link[=resolve_credentials]{resolve_credentials()}} would (it runs quietly).
+
+}}
 \examples{
 credential_spec("ocean")
 credential_spec("ocean", expect_nchar = 32L)

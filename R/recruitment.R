@@ -18,7 +18,7 @@
 #' or table shows the real gaps. Missing dates are dropped. Dates outside
 #' `from` to `to` are not counted.
 #'
-#' @param dates A Date vector (or anything [as.Date()] accepts).
+#' @param dates A Date vector (or anything `as.Date()` accepts).
 #' @param from First month to report. Default the earliest date.
 #' @param to Last month to report. Default the latest date. Set it to the
 #'   data-freeze month to run the series to the freeze.

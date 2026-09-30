@@ -206,3 +206,12 @@ test_that("a sparsely completed coded field is typed from every row, not a sampl
   expect_type(parsed$cond, "double")
   expect_identical(parsed$cond[!is.na(parsed$cond)], c(1, 2, 3))
 })
+
+test_that("the REDCap server presets fill in the API url", {
+  expect_equal(datasource_redcap_bctu("t")$config$url, "https://bctu-redcap.bham.ac.uk/api/")
+  expect_equal(datasource_redcap_itm("t")$config$url, "https://itm-redcap.bham.ac.uk/api/")
+  expect_equal(datasource_redcap_annex("t")$config$url, "https://bctu-annex.redcap.bham.ac.uk/api/")
+  ds <- datasource_redcap_itm("t", report_id = "12", name = "itm")
+  expect_equal(ds$config$report_id, "12")
+  expect_equal(ds$config$url, datasource_redcap("t", "https://itm-redcap.bham.ac.uk/api/", report_id = "12")$config$url)
+})

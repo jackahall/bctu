@@ -9,7 +9,7 @@
 
 project_marker_name <- "bctu-project.yml"
 
-#' Initialise a bctu project
+#' @describeIn bctu_project Initialise a bctu project
 #'
 #' Writes a `bctu-project.yml` marker at `dir` declaring the project name and,
 #' relative to the marker, where snapshots live. This file is the single anchor
@@ -19,7 +19,7 @@ project_marker_name <- "bctu-project.yml"
 #'   `"Data/Snapshots"`.
 #' @param dir Directory to write the marker into; default the current directory.
 #' @param overwrite Overwrite an existing marker? Default `FALSE`.
-#' @return The absolute path of the written marker, invisibly.
+#' @return `bctu_init_project()`: The absolute path of the written marker, invisibly.
 #' @examples
 #' \dontrun{
 #' bctu_init_project("OCeAN", dir = "path/to/trial/root")
@@ -44,7 +44,7 @@ bctu_init_project <- function(name,
 }
 
 #' Locate the nearest project marker by walking up from `start`
-#' @keywords internal
+#' @noRd
 find_project_marker <- function(start = getwd()) {
   dir <- normalizePath(start, mustWork = TRUE)
   repeat {
@@ -56,10 +56,18 @@ find_project_marker <- function(start = getwd()) {
   }
 }
 
-#' Read the bctu project configuration
+#' Project configuration
 #'
+#' A bctu project is marked by a `bctu-project.yml` at the trial root.
+#' Locations are read from it, never guessed from the working directory, and
+#' every resolved path is announced.
+#' @name bctu_project
+NULL
+
+#' @describeIn bctu_project Project configuration
+#' @order 1
 #' @param start Directory to search upward from; default the current directory.
-#' @return A list with `name`, `file` (absolute marker path), `root` (marker's
+#' @return `bctu_project()`: `bctu_project()`: A list with `name`, `file` (absolute marker path), `root` (marker's
 #'   directory), and the raw declared fields.
 #' @export
 bctu_project <- function(start = getwd()) {
@@ -93,7 +101,7 @@ bctu_project <- function(start = getwd()) {
   )
 }
 
-#' Resolve the snapshot store directory (absolute), and announce it
+#' @describeIn bctu_project Resolve the snapshot store directory (absolute), and announce it
 #'
 #' The store is resolved RELATIVE TO THE PROJECT MARKER, never the working
 #' directory. This is the single store resolver: it ERRORS if no
@@ -105,7 +113,7 @@ bctu_project <- function(start = getwd()) {
 #' @param create Create the store directory if it does not exist? Write paths
 #'   pass `TRUE`; read/inspect paths leave it `FALSE` (no directory is created
 #'   merely by resolving or listing).
-#' @return The absolute snapshot store path.
+#' @return `snapshot_store()`: The absolute snapshot store path.
 #' @examples
 #' \dontrun{
 #' snapshot_store()
@@ -127,9 +135,9 @@ snapshot_store <- function(start = getwd(), verbose = 1L, create = FALSE) {
   store
 }
 
-#' Print the fully resolved configuration (for operators and auditors)
+#' @describeIn bctu_project Print the fully resolved configuration (for operators and auditors)
 #' @param start Directory to search upward from; default the current directory.
-#' @return The project configuration list (see [bctu_project()]), invisibly.
+#' @return `bctu_config()`: The project configuration list (see [bctu_project()]), invisibly.
 #' @examples
 #' \dontrun{
 #' bctu_config()
@@ -147,11 +155,11 @@ bctu_config <- function(start = getwd()) {
 }
 
 # --- path helpers (no external deps) ---------------------------------------
-#' @keywords internal
+#' @noRd
 is_absolute_path <- function(path) {
   grepl("^(/|~|[A-Za-z]:[/\\\\])", path)
 }
-#' @keywords internal
+#' @noRd
 normalize_path_lenient <- function(path) {
   # normalizePath but tolerate a not-yet-existing leaf
   normalizePath(path, winslash = "/", mustWork = FALSE)

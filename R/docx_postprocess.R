@@ -20,7 +20,7 @@ A4_LONG_TWIPS <- 16838L
 A4_SHORT_TWIPS <- 11906L
 PAGE_MARGIN_TWIPS <- 2880L
 
-#' Repair a rendered trial report docx
+#' @describeIn trial_report Repair a rendered trial report docx
 #'
 #' Applied by [trial_report()] to the file pandoc has just written. It binds
 #' the title-page headers and footers to the relationship ids pandoc chose,
@@ -28,18 +28,17 @@ PAGE_MARGIN_TWIPS <- 2880L
 #' width, keeps each caption with the start of its table, drops the empty
 #' final section a report ends in when its last content is landscape,
 #' applies any theme given, fills the table of contents with the headings
-#' (see [populate_toc()]), writes the running header and footer field
-#' results (see [fill_running_fields()]), removes pandoc's
+#' (see `populate_toc()`), writes the running header and footer field
+#' results (see `fill_running_fields()`), removes pandoc's
 #' update-fields-on-open setting so Word opens the file without a prompt,
 #' and stamps the package version and template into the document properties
-#' (see [stamp_provenance()]).
-#'
+#' (see `stamp_provenance()`).
 #' @param path Path to the docx.
 #' @param theme A [report_theme()], a named list of its elements (the YAML
 #'   `theme` key), or `NULL` for the template defaults.
 #' @param template The template the docx was rendered from, from
-#'   [report_template()].
-#' @return `path`, invisibly.
+#'   `report_template()`.
+#' @return `repair_report_docx()`: `path`, invisibly.
 #' @examples
 #' \dontrun{
 #' repair_report_docx("report.docx")
@@ -110,7 +109,7 @@ zip_docx <- function(work, path) {
 #' @param rels The document.xml.rels text.
 #' @param path Path to the docx, named in errors.
 #' @return The document.xml text with the placeholders replaced.
-#' @keywords internal
+#' @noRd
 bind_header_footer_ids <- function(document, rels, path) {
   entries <- regmatches(rels, gregexpr("<Relationship[^>]*/>", rels))[[1]]
   target_id <- function(part) {
@@ -144,7 +143,7 @@ bind_header_footer_ids <- function(document, rels, path) {
 #'
 #' @param document The document.xml text.
 #' @return The document.xml text with the extents rewritten.
-#' @keywords internal
+#' @noRd
 widen_landscape_images <- function(document) {
   FULL_WIDTH_FRACTION <- 0.98
   portrait_width <- (A4_SHORT_TWIPS - PAGE_MARGIN_TWIPS) * TWIP_EMU
@@ -192,7 +191,7 @@ widen_landscape_images <- function(document) {
 #'
 #' @param document The document.xml text.
 #' @return The document.xml text with the paragraph properties added.
-#' @keywords internal
+#' @noRd
 keep_table_rows_together <- function(document) {
   tables <- gregexpr("<w:tbl>.*?</w:tbl>", document)[[1]]
   if (identical(as.integer(tables), -1L)) return(document)
@@ -233,7 +232,7 @@ keep_table_rows_together <- function(document) {
 #'
 #' @param document The document.xml text.
 #' @return The document.xml text.
-#' @keywords internal
+#' @noRd
 drop_trailing_empty_section <- function(document) {
   breaks <- gregexpr("<w:p>\\s*<w:pPr>\\s*<w:sectPr>.*?</w:sectPr>\\s*</w:pPr>\\s*</w:p>", document, perl = TRUE)[[1]]
   if (identical(as.integer(breaks), -1L)) return(document)
@@ -269,11 +268,11 @@ THEME_SLOT_REFS <- c(dk1 = "text1", lt1 = "background1", dk2 = "text2", lt2 = "b
 #' `font.size` scales every size in the template.
 #'
 #' @param work The unpacked docx folder.
-#' @param values A resolved theme, from [resolve_theme()].
-#' @param template The template specification, from [report_template()]:
+#' @param values A resolved theme, from `resolve_theme()`.
+#' @param template The template specification, from `report_template()`:
 #'   its `fonts` and `font_size` are what the theme's replace.
 #' @return `work`, invisibly.
-#' @keywords internal
+#' @noRd
 apply_theme <- function(work, values, template) {
   edit <- function(path, f) {
     if (!file.exists(path)) return(invisible())  # a docx built without a theme part keeps its literals only
@@ -298,7 +297,7 @@ apply_theme <- function(work, values, template) {
 #' @param theme The theme1.xml text.
 #' @param colours Hex colours named by slot tag (`accent1`, `dk2`, `hlink`).
 #' @return The theme1.xml text with those entries replaced.
-#' @keywords internal
+#' @noRd
 set_theme_colours <- function(theme, colours) {
   for (tag in names(colours))
     theme <- sub(paste0("(?s)<a:", tag, ">.*?</a:", tag, ">"),
@@ -318,7 +317,7 @@ set_theme_colours <- function(theme, colours) {
 #' @param xml The text of a document, styles, header or footer part.
 #' @param colours Hex colours named by slot tag.
 #' @return The part with its literal colours rewritten.
-#' @keywords internal
+#' @noRd
 set_theme_literals <- function(xml, colours) {
   scheme <- stats::setNames(colours, THEME_SLOT_REFS[names(colours)])
   mix <- function(base, amount, towards) {
@@ -347,7 +346,7 @@ set_theme_literals <- function(xml, colours) {
 #' @param fonts Typefaces named by role; `heading` sets the major font and
 #'   `body` the minor.
 #' @return The theme1.xml text.
-#' @keywords internal
+#' @noRd
 set_theme_fonts <- function(theme, fonts) {
   for (role in intersect(names(fonts), c("heading", "body"))) {
     tag <- if (role == "heading") "majorFont" else "minorFont"
@@ -367,7 +366,7 @@ set_theme_fonts <- function(theme, fonts) {
 #' @param fonts Typefaces named by role.
 #' @param template_fonts The typefaces the template is written in, by role.
 #' @return The part with its fonts rewritten.
-#' @keywords internal
+#' @noRd
 set_font_literals <- function(xml, fonts, template_fonts) {
   swap <- function(text, from, to)
     gsub(paste0('(w:(?:ascii|hAnsi|cs|eastAsia))="', from, '"'), paste0('\\1="', to, '"'), text, perl = TRUE)
@@ -388,7 +387,7 @@ set_font_literals <- function(xml, fonts, template_fonts) {
 #' @param template_pt The template's body size in points; every `w:sz` and
 #'   `w:szCs` is scaled by their ratio.
 #' @return The part with its sizes scaled.
-#' @keywords internal
+#' @noRd
 scale_font_sizes <- function(xml, body_pt, template_pt) {
   factor <- body_pt / template_pt
   if (factor == 1) return(xml)
@@ -409,9 +408,9 @@ scale_font_sizes <- function(xml, body_pt, template_pt) {
 #' printed on any page.
 #'
 #' @param work The unpacked docx folder.
-#' @param template The template specification, from [report_template()].
+#' @param template The template specification, from `report_template()`.
 #' @return `work`, invisibly.
-#' @keywords internal
+#' @noRd
 stamp_provenance <- function(work, template) {
   version <- as.character(utils::packageVersion("bctu"))
   keywords <- paste0("bctu ", version, "; template ", template$name, "; rendered ",
@@ -434,10 +433,9 @@ stamp_provenance <- function(work, template) {
   invisible(work)
 }
 
-#' Read the provenance stamp of a rendered report
-#'
+#' @describeIn trial_report Read the provenance stamp of a rendered report
 #' @param path Path to a docx rendered by [trial_report()].
-#' @return A list with `version`, `template` and `rendered`, or `NULL` for a
+#' @return `report_provenance()`: A list with `version`, `template` and `rendered`, or `NULL` for a
 #'   file without the stamp.
 #' @examples
 #' \dontrun{

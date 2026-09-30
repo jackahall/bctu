@@ -2,7 +2,9 @@
 % Please edit documentation in R/validation.R
 \name{check_setup}
 \alias{check_setup}
-\title{Check this machine is correctly set up to use bctu (installation qualification)}
+\alias{write_setup_report}
+\alias{package_risk_report}
+\title{Setup check and qualification records}
 \usage{
 check_setup(
   store = NULL,
@@ -10,6 +12,13 @@ check_setup(
   require_credentials = NULL,
   verbose = 2L
 )
+
+write_setup_report(
+  result = check_setup(verbose = 0L),
+  path = "bctu-setup-qualification.yml"
+)
+
+package_risk_report(path = ".", ...)
 }
 \arguments{
 \item{store}{Optional snapshot store directory to test writing to. If \code{NULL}
@@ -28,13 +37,33 @@ the secret value is never resolved into output, printed, or returned.}
 
 \item{verbose}{\code{2} prints the full table and the overall verdict (default),
 \code{1} prints only the overall verdict, \code{0} prints nothing.}
+
+\item{result}{A \code{bctu_setup_qualification} from \code{\link[=check_setup]{check_setup()}}. Defaults to
+running \code{\link[=check_setup]{check_setup()}} silently.}
+
+\item{path}{Package root whose dependencies are scored. Default \code{"."}.}
+
+\item{...}{Passed through to \code{riskmetric::pkg_assess()}.}
 }
 \value{
-Invisibly, a \code{bctu_setup_qualification} list with \code{ok} (overall pass),
+\code{check_setup()}: \code{check_setup()}: Invisibly, a \code{bctu_setup_qualification} list with \code{ok} (overall pass),
 \code{checks} (a data frame of every check), \code{environment} (the captured
 environment), \code{formats}, and \code{time}.
+
+\code{write_setup_report()}: The absolute path of the written file, invisibly.
+
+\code{package_risk_report()}: A tidy data frame of dependency risk scores.
 }
 \description{
+\code{check_setup()} checks that R, the required packages, the rendering
+toolchain, the snapshot store and credentials are in place, and
+\code{write_setup_report()} records the result as an installation-qualification
+artefact.
+}
+\section{Functions}{
+\itemize{
+\item \code{check_setup()}: Setup check and qualification records
+
 Runs a battery of named installation-qualification (IQ) checks, prints an
 IQ-style table (Check / Result / Detail) with an overall PASS or FAIL, and
 returns (invisibly) a structured result you can archive with
@@ -46,16 +75,40 @@ present-but-broken pandoc or TinyTeX install can still report PASS. An OQ
 render probe and R reference checks are a documented future item, not current
 behaviour. The approach is informed by the R Foundation regulatory document
 R-FDA.pdf and the marcschwartz/R-IQ-OQ tooling.
-}
-\details{
 Formal validation of the bctu package itself is done separately with the
 pharmaR \code{valtools} package at release time (requirements, test cases,
 traceability matrix, validation report), and dependency risk is scored with
 pharmaR \code{riskmetric} via \code{\link[=package_risk_report]{package_risk_report()}}. bctu does not recreate
 those frameworks; \code{check_setup()} is only the installation IQ.
-}
+
+\item \code{write_setup_report()}: Write a setup-qualification record as a YAML IQ artefact
+
+Writes the result of \code{\link[=check_setup]{check_setup()}} to a human-readable and machine-readable
+YAML file (schema \code{bctu-setup-qualification/1}): a timestamp, the overall
+verdict, every check row, and a full environment capture (R version, platform,
+dependency versions, pandoc / xelatex / git versions, and session-level
+detail). This is the archivable installation-qualification artefact. No
+credential value is ever written.
+
+\item \code{package_risk_report()}: Score bctu's dependency risk with pharmaR riskmetric (dependency-risk layer)
+
+A thin wrapper over the pharmaR / R Validation Hub \code{riskmetric} package. If
+\code{riskmetric} is installed, it assesses and scores each of the package's
+dependencies and returns a tidy risk summary. bctu does not recreate
+\code{riskmetric}; if it is not installed this errors with how to install it.
+Dependency risk is validation layer (c). Formal validation of bctu itself is
+layer (b), done with \code{valtools} at release time. The installation IQ is
+layer (a), \code{\link[=check_setup]{check_setup()}}.
+
+}}
 \examples{
 \donttest{
 check_setup(verbose = 1)
+}
+\dontrun{
+write_setup_report(path = "bctu-setup-qualification.yml")
+}
+\dontrun{
+package_risk_report(path = ".")
 }
 }
