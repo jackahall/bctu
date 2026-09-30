@@ -1,3 +1,9 @@
+# bctu 0.26.0
+
+## Changes
+
+* `trial_report` YAML fields `trial-logo` and `trial-logo-width`: a trial logo image at the top right of the title page, above the trial name. A missing image stops the render with an error.
+
 # bctu 0.25.0
 
 ## Changes

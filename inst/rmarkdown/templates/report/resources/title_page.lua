@@ -418,10 +418,25 @@ local TITLE_PARAS = {
   { "report-subtype",     "ReportSubtype"     },
 }
 
+local function trial_logo(path, width)
+  local f = io.open(path, "rb")
+  if f == nil then
+    error("trial-logo: no image at '" .. path .. "' (relative paths are read from the Rmd's folder)")
+  end
+  f:close()
+  local img = pandoc.Image({}, path, "", pandoc.Attr("", {}, { width = width }))
+  return pandoc.Div({ pandoc.Para({ img }) },
+    pandoc.Attr("", {}, { ["custom-style"] = "TitleLogo" }))
+end
+
 function Pandoc(doc)
   local m = doc.meta
 
   local blocks = pandoc.Blocks({})
+  local logo = as_string(m["trial-logo"])
+  if logo then
+    blocks:insert(trial_logo(logo, as_string(m["trial-logo-width"]) or "2in"))
+  end
   for _, p in ipairs(TITLE_PARAS) do
     local b = styled_para(as_string(m[p[1]]), p[2])
     if b then

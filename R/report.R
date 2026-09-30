@@ -523,6 +523,8 @@ NULL
 #'   strings, a `{name, role}` map, or a list of such maps;
 #' * `include-toc` (`true`/`false`) and `toc-depth` (default 3): the Word
 #'   table of contents;
+#' * `trial-logo`: path to an image (PNG, GIF or JPEG) placed at the top right
+#'   of the title page; `trial-logo-width` sets its width (default `"2in"`);
 #' * `confidential`: text for a confidentiality page, centred on a page of
 #'   its own after the title page. Omit the key for no such page.
 #' In RStudio, **File > New File > R Markdown > From Template > "BCTU trial

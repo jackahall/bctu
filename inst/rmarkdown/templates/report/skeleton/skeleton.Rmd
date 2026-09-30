@@ -10,6 +10,10 @@ trial-registration:  "ISRCTN00000000"
 report-type:         "Data Monitoring Committee Report"
 report-subtype:      "Open Report"          # free text; delete if not needed
 
+# Optional trial logo at the top right of the title page (PNG, GIF or JPEG).
+# trial-logo:        "Docs/trial-logo.png"
+# trial-logo-width:  "2in"
+
 # Metadata table (anchored to bottom-left of the title page). Each list
 # item is a row; the label is whatever you write before the colon. A value
 # may be a string, a list of strings, a {name, role} map, or a list of

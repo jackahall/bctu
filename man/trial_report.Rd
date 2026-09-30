@@ -149,6 +149,8 @@ Each item is \code{Label: value}, where the value is a string, a list of
 strings, a \verb{\{name, role\}} map, or a list of such maps;
 \item \code{include-toc} (\code{true}/\code{false}) and \code{toc-depth} (default 3): the Word
 table of contents;
+\item \code{trial-logo}: path to an image (PNG, GIF or JPEG) placed at the top right
+of the title page; \code{trial-logo-width} sets its width (default \code{"2in"});
 \item \code{confidential}: text for a confidentiality page, centred on a page of
 its own after the title page. Omit the key for no such page.
 In RStudio, \strong{File > New File > R Markdown > From Template > "BCTU trial

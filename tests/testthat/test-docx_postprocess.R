@@ -254,3 +254,29 @@ test_that("field_if compares its operands", {
   expect_equal(field_if('IF "" <> "" " - " ""'), "")
   expect_equal(field_if('IF "a" = "a" "yes" "no"'), "yes")
 })
+
+test_that("trial-logo puts the image on the title page and a missing file is an error", {
+  skip_if_not_installed("rmarkdown")
+  skip_if(!nzchar(Sys.which("pandoc")), "pandoc not available")
+  dir <- withr::local_tempdir()
+  file.copy(system.file("rmarkdown", "templates", "report", "resources", "bctu-logo.png",
+                        package = "bctu"), file.path(dir, "trial logo.png"))
+  write_rmd <- function(logo) {
+    rmd <- file.path(dir, "logo.Rmd")
+    writeLines(c("---", 'trial-short-name: "TEST"', 'report-type: "Test"',
+                 paste0('trial-logo: "', logo, '"'), 'trial-logo-width: "1.5in"',
+                 "output:", "  bctu::trial_report: default", "---", "", "# One", "", "Text."), rmd)
+    rmd
+  }
+  out <- rmarkdown::render(write_rmd("trial logo.png"), output_dir = dir, quiet = TRUE)
+  work <- withr::local_tempdir()
+  utils::unzip(out, exdir = work)
+  document <- paste(readLines(file.path(work, "word", "document.xml"), warn = FALSE), collapse = "")
+  logo_at <- regexpr('w:val="TitleLogo"', document, fixed = TRUE)
+  drawing_at <- regexpr("<w:drawing>", document, fixed = TRUE)
+  title_at <- regexpr('w:val="TitleAcronym"', document, fixed = TRUE)
+  expect_true(logo_at > 0 && logo_at < drawing_at && drawing_at < title_at)
+  expect_true(grepl('<wp:extent cx="1371600"', document, fixed = TRUE))
+
+  expect_error(rmarkdown::render(write_rmd("missing.png"), output_dir = dir, quiet = TRUE))
+})
