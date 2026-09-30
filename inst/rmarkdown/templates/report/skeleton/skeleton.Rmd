@@ -10,7 +10,7 @@ trial-registration:  "ISRCTN00000000"
 report-type:         "Data Monitoring Committee Report"
 report-subtype:      "Open Report"          # free text; delete if not needed
 
-# Optional trial logo, centred below the header band on the title page (PNG,
+# Optional trial logo in the title-page header, opposite the BCTU logo (PNG,
 # GIF or JPEG), scaled to fit the width by height box with its aspect ratio kept.
 # trial-logo:        "Docs/trial-logo.png"
 # trial-logo-width:  "2in"

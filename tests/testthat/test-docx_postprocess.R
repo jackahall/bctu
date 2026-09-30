@@ -255,38 +255,45 @@ test_that("field_if compares its operands", {
   expect_equal(field_if('IF "a" = "a" "yes" "no"'), "yes")
 })
 
-test_that("trial-logo puts the image on the title page and a missing file is an error", {
+test_that("trial-logo sits in the title-page header opposite the BCTU logo, fitted to its box", {
   skip_if_not_installed("rmarkdown")
   skip_if(!nzchar(Sys.which("pandoc")), "pandoc not available")
   dir <- withr::local_tempdir()
   file.copy(system.file("rmarkdown", "templates", "report", "resources", "bctu-logo.png",
                         package = "bctu"), file.path(dir, "trial logo.png"))
-  write_rmd <- function(logo) {
+  grDevices::png(file.path(dir, "tall.png"), width = 200, height = 1000); plot.new(); grDevices::dev.off()
+  render_header <- function(logo, width = "2in") {
     rmd <- file.path(dir, "logo.Rmd")
     writeLines(c("---", 'trial-short-name: "TEST"', 'report-type: "Test"',
-                 paste0('trial-logo: "', logo, '"'), 'trial-logo-width: "1.5in"',
+                 paste0('trial-logo: "', logo, '"'), paste0('trial-logo-width: "', width, '"'),
                  "output:", "  bctu::trial_report: default", "---", "", "# One", "", "Text."), rmd)
-    rmd
+    out <- rmarkdown::render(rmd, output_dir = dir, quiet = TRUE)
+    work <- withr::local_tempdir(.local_envir = parent.frame())
+    utils::unzip(out, exdir = work)
+    list(header = paste(readLines(file.path(work, "word", "header2.xml"), warn = FALSE), collapse = ""),
+         styles = paste(readLines(file.path(work, "word", "styles.xml"), warn = FALSE), collapse = ""),
+         media  = list.files(file.path(work, "word", "media")))
   }
-  out <- rmarkdown::render(write_rmd("trial logo.png"), output_dir = dir, quiet = TRUE)
-  work <- withr::local_tempdir()
-  utils::unzip(out, exdir = work)
-  document <- paste(readLines(file.path(work, "word", "document.xml"), warn = FALSE), collapse = "")
-  logo_at <- regexpr('w:val="TitleLogo"', document, fixed = TRUE)
-  drawing_at <- regexpr("<w:drawing>", document, fixed = TRUE)
-  title_at <- regexpr('w:val="TitleAcronym"', document, fixed = TRUE)
-  expect_true(logo_at > 0 && logo_at < drawing_at && drawing_at < title_at)
-  expect_true(grepl('<wp:extent cx="1371600"', document, fixed = TRUE))  # 568 x 160 px fits the 1.5in width
-  styles <- paste(readLines(file.path(work, "word", "styles.xml"), warn = FALSE), collapse = "")
-  ids <- regmatches(styles, gregexpr('w:styleId="[^"]+"', styles))[[1]]
-  expect_identical(ids[duplicated(ids)], character(0))  # every custom-style name resolves to a reference.docx style
+  nums <- function(x, pattern) as.numeric(regmatches(x, gregexpr(pattern, x, perl = TRUE))[[1]])
+  geometry <- function(h) list(
+    left = nums(h, '(?<=<wp:positionH relativeFrom="page"><wp:posOffset>)[0-9]+'),
+    top  = nums(h, '(?<=<wp:positionV relativeFrom="page"><wp:posOffset>)[0-9]+'),
+    cx   = nums(h, '(?<=<wp:extent cx=")[0-9]+'),
+    cy   = nums(h, '<wp:extent cx="[0-9]+" cy="\\K[0-9]+'))
 
-  # A tall logo (200 x 1000 px) is limited by the default 1in height: 0.2in wide.
-  grDevices::png(file.path(dir, "tall.png"), width = 200, height = 1000); plot.new(); grDevices::dev.off()
-  out <- rmarkdown::render(write_rmd("tall.png"), output_dir = dir, quiet = TRUE)
-  utils::unzip(out, exdir = work)
-  document <- paste(readLines(file.path(work, "word", "document.xml"), warn = FALSE), collapse = "")
-  expect_true(grepl('<wp:extent cx="182880"', document, fixed = TRUE))
+  wide <- render_header("trial logo.png", "1.5in")
+  g <- geometry(wide$header)
+  expect_length(g$cx, 2L)                                          # BCTU logo, then the trial logo
+  expect_identical(g$cx[2], 1371600)                               # 568 x 160 px, width-limited to 1.5in
+  expect_identical(11906 * 635 - g$left[2] - g$cx[2], g$left[1])   # right margin mirrors the BCTU left margin
+  expect_lte(abs((g$top[1] + g$cy[1] / 2) - (g$top[2] + g$cy[2] / 2)), 1)  # vertical centres agree
+  expect_true("trial-logo.png" %in% wide$media)
+  ids <- regmatches(wide$styles, gregexpr('w:styleId="[^"]+"', wide$styles))[[1]]
+  expect_identical(ids[duplicated(ids)], character(0))             # every custom-style name resolves
 
-  expect_error(rmarkdown::render(write_rmd("missing.png"), output_dir = dir, quiet = TRUE))
+  g <- geometry(render_header("tall.png")$header)
+  expect_identical(g$cy[2], g$cy[1])                               # height-limited to the BCTU logo's height
+  expect_identical(g$cx[2], round(g$cy[1] * 200 / 1000))
+
+  expect_error(render_header("missing.png"), "no image")
 })

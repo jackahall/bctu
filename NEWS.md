@@ -1,8 +1,14 @@
+# bctu 0.27.0
+
+## Changes
+
+* `trial-logo` now sits in the title-page header opposite the BCTU logo: right-aligned to the same margin, centred on it vertically, scaled to fit `trial-logo-width` by `trial-logo-height` with its aspect ratio kept and never taller than the BCTU logo. It is placed by the docx post-processor (`repair_report_docx(logo = )`) and no longer needs pandoc.image.size. Relative paths are read from the Rmd's folder.
+
 # bctu 0.26.2
 
 ## Changes
 
-* The title-page filter now names its custom styles as reference.docx does ("Title Logo", "Image Caption", "Table Caption", "Footnote Block Text"). Asking by id made pandoc add plain duplicate styles, which Word used: the logo sat at the left and captions lost their keep-with-next formatting.
+* The title-page filter now names its custom styles as reference.docx does ("Image Caption", "Table Caption", "Footnote Block Text"). Asking by id made pandoc add plain duplicate styles, which Word used: the 0.26.1 logo sat at the left and captions lost their keep-with-next formatting.
 
 # bctu 0.26.1
 

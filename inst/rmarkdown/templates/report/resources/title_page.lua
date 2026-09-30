@@ -14,7 +14,7 @@
 
 local utils = pandoc.utils
 
--- custom-style takes a style NAME, not its id: "Title Logo" (id TitleLogo).
+-- custom-style takes a style NAME, not its id: "Image Caption" (id ImageCaption).
 -- A name missing from reference.docx makes pandoc add a plain duplicate of the
 -- id, and Word then formats the paragraph with the duplicate.
 
@@ -422,50 +422,10 @@ local TITLE_PARAS = {
   { "report-subtype",     "ReportSubtype"     },
 }
 
--- A YAML length ("2in", "5cm", "40mm", "144pt"; a bare number is inches) in inches.
-local function length_in(s, key)
-  local n, unit = s:match("^%s*([%d%.]+)%s*(%a*)%s*$")
-  if unit == "" then unit = "in" end
-  local per_unit = { ["in"] = 1, cm = 1 / 2.54, mm = 1 / 25.4, pt = 1 / 72 }
-  if n == nil or per_unit[unit] == nil then
-    error(key .. ": '" .. s .. "' must be a number with unit in, cm, mm or pt")
-  end
-  return tonumber(n) * per_unit[unit]
-end
-
--- The logo scaled to fit max_w by max_h inches, aspect ratio kept, centred
--- in a TitleLogo paragraph (spaced below the page-anchored BCTU header band
--- in reference.docx, so the two never overlap).
-local function trial_logo(path, max_w, max_h)
-  local f = io.open(path, "rb")
-  if f == nil then
-    error("trial-logo: no image at '" .. path .. "' (relative paths are read from the Rmd's folder)")
-  end
-  local bytes = f:read("a")
-  f:close()
-  if pandoc.image == nil or pandoc.image.size == nil then
-    error("trial-logo needs pandoc 3.1.13 or later (pandoc.image.size); this is pandoc " .. tostring(PANDOC_VERSION))
-  end
-  local ok, size = pcall(pandoc.image.size, bytes)
-  if not ok then
-    error("trial-logo: cannot read the image size of '" .. path .. "': " .. tostring(size))
-  end
-  local width = math.min(max_w, max_h * size.width / size.height)
-  local img = pandoc.Image({}, path, "", pandoc.Attr("", {}, { width = string.format("%.3fin", width) }))
-  return pandoc.Div({ pandoc.Para({ img }) },
-    pandoc.Attr("", {}, { ["custom-style"] = "Title Logo" }))
-end
-
 function Pandoc(doc)
   local m = doc.meta
 
   local blocks = pandoc.Blocks({})
-  local logo = as_string(m["trial-logo"])
-  if logo then
-    blocks:insert(trial_logo(logo,
-      length_in(as_string(m["trial-logo-width"]) or "2in", "trial-logo-width"),
-      length_in(as_string(m["trial-logo-height"]) or "1in", "trial-logo-height")))
-  end
   for _, p in ipairs(TITLE_PARAS) do
     local b = styled_para(as_string(m[p[1]]), p[2])
     if b then

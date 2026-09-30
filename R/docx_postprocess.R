@@ -38,13 +38,17 @@ PAGE_MARGIN_TWIPS <- 2880L
 #'   `theme` key), or `NULL` for the template defaults.
 #' @param template The template the docx was rendered from, from
 #'   `report_template()`.
+#' @param logo Optional trial logo: a list with `path` (a PNG, GIF or JPEG)
+#'   and `width` and `height` in inches, the box it is fitted to. It is placed
+#'   in the title-page header, mirroring the BCTU logo at the right margin and
+#'   centred on it vertically. `NULL` (default) for no trial logo.
 #' @return `repair_report_docx()`: `path`, invisibly.
 #' @examples
 #' \dontrun{
 #' repair_report_docx("report.docx")
 #' }
 #' @export
-repair_report_docx <- function(path, theme = NULL, template = report_template()) {
+repair_report_docx <- function(path, theme = NULL, template = report_template(), logo = NULL) {
   if (!file.exists(path))
     cli::cli_abort("No file to repair at {.file {path}}.")
   path <- normalizePath(path, winslash = "/")
@@ -82,6 +86,7 @@ repair_report_docx <- function(path, theme = NULL, template = report_template())
     writeChar(xml, part, eos = NULL, useBytes = TRUE)
   }
 
+  if (!is.null(logo)) add_header_logo(work, logo$path, logo$width, logo$height)
   apply_theme(work, resolve_theme(as_report_theme(theme)), template)
   stamp_provenance(work, template)
 

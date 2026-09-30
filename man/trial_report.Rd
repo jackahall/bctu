@@ -14,7 +14,12 @@
 \usage{
 trial_report(template = "bctu", ...)
 
-repair_report_docx(path, theme = NULL, template = report_template())
+repair_report_docx(
+  path,
+  theme = NULL,
+  template = report_template(),
+  logo = NULL
+)
 
 report_provenance(path)
 
@@ -51,6 +56,11 @@ check_report_layout(path, sparse = 6L)
 
 \item{theme}{A \code{\link[=report_theme]{report_theme()}}, a named list of its elements (the YAML
 \code{theme} key), or \code{NULL} for the template defaults.}
+
+\item{logo}{Optional trial logo: a list with \code{path} (a PNG, GIF or JPEG)
+and \code{width} and \code{height} in inches, the box it is fitted to. It is placed
+in the title-page header, mirroring the BCTU logo at the right margin and
+centred on it vertically. \code{NULL} (default) for no trial logo.}
 
 \item{colour.accent}{The accent colour every other colour inherits from
 (UoB gold, \code{"C59A00"}).}
@@ -149,8 +159,12 @@ Each item is \code{Label: value}, where the value is a string, a list of
 strings, a \verb{\{name, role\}} map, or a list of such maps;
 \item \code{include-toc} (\code{true}/\code{false}) and \code{toc-depth} (default 3): the Word
 table of contents;
-\item \code{trial-logo}: path to an image (PNG, GIF or JPEG) placed at the top right
-of the title page; \code{trial-logo-width} sets its width (default \code{"2in"});
+\item \code{trial-logo}: path to an image (PNG, GIF or JPEG; relative paths are
+read from the Rmd's folder) placed in the title-page header opposite the
+BCTU logo: right-aligned to the same margin and centred on it
+vertically. It is scaled to fit \code{trial-logo-width} by
+\code{trial-logo-height} (defaults \code{"2in"} by \code{"1in"}, units in, cm, mm or
+pt) with its aspect ratio kept, and is never taller than the BCTU logo;
 \item \code{confidential}: text for a confidentiality page, centred on a page of
 its own after the title page. Omit the key for no such page.
 In RStudio, \strong{File > New File > R Markdown > From Template > "BCTU trial

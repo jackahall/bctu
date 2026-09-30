@@ -523,11 +523,12 @@ NULL
 #'   strings, a `{name, role}` map, or a list of such maps;
 #' * `include-toc` (`true`/`false`) and `toc-depth` (default 3): the Word
 #'   table of contents;
-#' * `trial-logo`: path to an image (PNG, GIF or JPEG) centred on the title
-#'   page below the BCTU header band, above the trial name. It is scaled to
-#'   fit `trial-logo-width` by `trial-logo-height` (defaults `"2in"` by
-#'   `"1in"`; units in, cm, mm or pt) with its aspect ratio kept, so wide,
-#'   tall and square logos all fit. Needs pandoc 3.1.13 or later;
+#' * `trial-logo`: path to an image (PNG, GIF or JPEG; relative paths are
+#'   read from the Rmd's folder) placed in the title-page header opposite the
+#'   BCTU logo: right-aligned to the same margin and centred on it
+#'   vertically. It is scaled to fit `trial-logo-width` by
+#'   `trial-logo-height` (defaults `"2in"` by `"1in"`, units in, cm, mm or
+#'   pt) with its aspect ratio kept, and is never taller than the BCTU logo;
 #' * `confidential`: text for a confidentiality page, centred on a page of
 #'   its own after the title page. Omit the key for no such page.
 #' In RStudio, **File > New File > R Markdown > From Template > "BCTU trial
@@ -577,7 +578,14 @@ trial_report <- function(template = "bctu", ...) {
     dots$pandoc_args <- c(defaults$pandoc_args, dots$pandoc_args)
   format <- do.call(rmarkdown::word_document, utils::modifyList(defaults, dots))
   format$post_processor <- function(metadata, input_file, output_file, clean, verbose) {
-    repair_report_docx(output_file, theme = metadata[["theme"]], template = spec)
+    logo <- metadata[["trial-logo"]]
+    if (!is.null(logo)) {
+      if (!grepl("^(/|[A-Za-z]:|\\\\)", logo)) logo <- file.path(dirname(input_file), logo)
+      logo <- list(path = logo,
+                   width  = logo_length_in(metadata[["trial-logo-width"]] %||% "2in", "trial-logo-width"),
+                   height = logo_length_in(metadata[["trial-logo-height"]] %||% "1in", "trial-logo-height"))
+    }
+    repair_report_docx(output_file, theme = metadata[["theme"]], template = spec, logo = logo)
     output_file
   }
   format
