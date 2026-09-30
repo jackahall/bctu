@@ -1,3 +1,9 @@
+# bctu 0.26.1
+
+## Changes
+
+* `trial-logo` is centred on the title page below the BCTU header band, so the two logos never overlap, and is scaled to fit `trial-logo-width` by the new `trial-logo-height` (defaults 2in by 1in) with its aspect ratio kept. Lengths take in, cm, mm or pt. Needs pandoc 3.1.13 or later, and stops with a named error otherwise.
+
 # bctu 0.26.0
 
 ## Changes
