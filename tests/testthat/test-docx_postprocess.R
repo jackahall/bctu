@@ -277,6 +277,9 @@ test_that("trial-logo puts the image on the title page and a missing file is an 
   title_at <- regexpr('w:val="TitleAcronym"', document, fixed = TRUE)
   expect_true(logo_at > 0 && logo_at < drawing_at && drawing_at < title_at)
   expect_true(grepl('<wp:extent cx="1371600"', document, fixed = TRUE))  # 568 x 160 px fits the 1.5in width
+  styles <- paste(readLines(file.path(work, "word", "styles.xml"), warn = FALSE), collapse = "")
+  ids <- regmatches(styles, gregexpr('w:styleId="[^"]+"', styles))[[1]]
+  expect_identical(ids[duplicated(ids)], character(0))  # every custom-style name resolves to a reference.docx style
 
   # A tall logo (200 x 1000 px) is limited by the default 1in height: 0.2in wide.
   grDevices::png(file.path(dir, "tall.png"), width = 200, height = 1000); plot.new(); grDevices::dev.off()

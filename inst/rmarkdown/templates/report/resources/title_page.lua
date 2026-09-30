@@ -14,6 +14,10 @@
 
 local utils = pandoc.utils
 
+-- custom-style takes a style NAME, not its id: "Title Logo" (id TitleLogo).
+-- A name missing from reference.docx makes pandoc add a plain duplicate of the
+-- id, and Word then formats the paragraph with the duplicate.
+
 local function is_metalist(v) return utils.type(v) == "List" end
 
 local function is_metamap(v)
@@ -349,20 +353,20 @@ local function process_blocks(blocks, counters)
         if inl.t == "Image" then inl.caption = pandoc.Inlines({}) end
         inlines:insert(inl)
       end
-      out:insert(captioned_para("ImageCaption", inlines))
+      out:insert(captioned_para("Image Caption", inlines))
       i = next_content(blocks, i + 1)
     elseif b.t == "Table" then
       counters.tbl = counters.tbl + 1
       local cap_inlines = b.caption and b.caption.long
         and utils.blocks_to_inlines(b.caption.long) or pandoc.Inlines({})
-      out:insert(captioned_para("TableCaption",
+      out:insert(captioned_para("Table Caption",
         caption_inlines("Table", counters.tbl, cap_inlines)))
       b.caption = pandoc.Caption()
       out:insert(b)
       i = next_content(blocks, i + 1)
       if is_footnote_div(blocks[i]) then
         out:insert(pandoc.Div(blocks[i].content,
-          pandoc.Attr("", {}, { ["custom-style"] = "FootnoteBlockText" })))
+          pandoc.Attr("", {}, { ["custom-style"] = "Footnote Block Text" })))
         i = next_content(blocks, i + 1)
       end
       out:insert(empty_para())
@@ -449,7 +453,7 @@ local function trial_logo(path, max_w, max_h)
   local width = math.min(max_w, max_h * size.width / size.height)
   local img = pandoc.Image({}, path, "", pandoc.Attr("", {}, { width = string.format("%.3fin", width) }))
   return pandoc.Div({ pandoc.Para({ img }) },
-    pandoc.Attr("", {}, { ["custom-style"] = "TitleLogo" }))
+    pandoc.Attr("", {}, { ["custom-style"] = "Title Logo" }))
 end
 
 function Pandoc(doc)

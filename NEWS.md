@@ -1,3 +1,9 @@
+# bctu 0.26.2
+
+## Changes
+
+* The title-page filter now names its custom styles as reference.docx does ("Title Logo", "Image Caption", "Table Caption", "Footnote Block Text"). Asking by id made pandoc add plain duplicate styles, which Word used: the logo sat at the left and captions lost their keep-with-next formatting.
+
 # bctu 0.26.1
 
 ## Changes
