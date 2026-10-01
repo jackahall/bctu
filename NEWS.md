@@ -1,3 +1,9 @@
+# bctu 0.28.0
+
+## Changes
+
+* `trial_slides()` writes a PowerPoint deck on the bundled University of Birmingham slide template (`slide_template()`, `inst/powerpoint`): a title slide, section dividers (`slide_section()`) and one slide per ggplot or data frame (`slide_content()`), tables styled as in the reports and sized to fit. Needs officer and flextable (Suggests).
+
 # bctu 0.27.0
 
 ## Changes
