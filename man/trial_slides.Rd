@@ -56,8 +56,9 @@ rows shown in bold, and whether unindented rows of an indented table are
 bold.}
 
 \item{font_size}{For a table, the smallest text size in points (the
-table grows to fill the slide, up to 24); for a figure, the base text
-size. At least 14.}
+table grows to fill the slide, up to 24), at least 14; for a figure,
+the base text size, which also sets the smallest value label (three
+quarters of it).}
 
 \item{breaks}{For a table, where it splits across slides: \code{NULL}
 (default) splits it automatically; \code{integer(0)} keeps it on one slide;

@@ -127,14 +127,15 @@ slide_section <- function(title) {
 #'   breaks the font is the largest that fits every slide, and a slide that
 #'   does not fit at `font_size` is an error.
 #' @param font_size For a table, the smallest text size in points (the
-#'   table grows to fill the slide, up to 24); for a figure, the base text
-#'   size. At least 14.
+#'   table grows to fill the slide, up to 24), at least 14; for a figure,
+#'   the base text size, which also sets the smallest value label (three
+#'   quarters of it).
 #' @export
 slide_content <- function(title, content, note = NULL, bold_rows = NULL, bold_headings = TRUE, font_size = 16,
                           breaks = NULL) {
   if (!inherits(content, "ggplot") && !is.data.frame(content))
     cli::cli_abort("{.arg content} must be a ggplot or a data frame.")
-  if (font_size < 14) cli::cli_abort("{.arg font_size} must be at least 14 points.")
+  if (is.data.frame(content) && font_size < 14) cli::cli_abort("{.arg font_size} must be at least 14 points for a table.")
   structure(list(title = title, content = content, note = note, bold_rows = bold_rows,
                  bold_headings = bold_headings, font_size = font_size, breaks = breaks), class = "slide_content")
 }

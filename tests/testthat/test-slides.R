@@ -18,4 +18,5 @@ test_that("trial_slides builds a deck on the UoB template", {
   expect_true("Long (continued)" %in% officer::slide_summary(long, index = 3)$text)
   expect_error(slide_content("Bad", 1:3), "ggplot or a data frame")
   expect_error(slide_content("Small", big, font_size = 10), "at least 14")
+  expect_s3_class(slide_content("Small figure", ggplot2::ggplot(), font_size = 12), "slide_content")
 })

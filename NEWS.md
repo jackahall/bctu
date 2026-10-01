@@ -1,3 +1,9 @@
+# bctu 0.28.1
+
+## Changes
+
+* `slide_content()`: the 14 pt minimum `font_size` now applies to tables only. A figure may take a smaller base size, which also lowers the smallest value label (three quarters of `font_size`).
+
 # bctu 0.28.0
 
 ## Changes
