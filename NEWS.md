@@ -2,7 +2,7 @@
 
 ## Changes
 
-* `trial_slides()` writes a PowerPoint deck on the bundled University of Birmingham slide template (`slide_template()`, `inst/powerpoint`): a title slide, section dividers (`slide_section()`) and one slide per ggplot or data frame (`slide_content()`), tables styled as in the reports and sized to fit. Needs officer and flextable (Suggests).
+* `trial_slides()` writes a PowerPoint deck on the bundled BCTU slide template (`slide_template()`, `inst/powerpoint/bctu-slides-template.potx`: University of Birmingham design with the BCTU logo): a title slide, section dividers (`slide_section()`) and one slide per ggplot or data frame (`slide_content()`). Tables are native PowerPoint tables in the template's table style at 14 pt or larger, continued across slides, with `breaks` to set where they split; figures take the slide background and readable text sizes. Content stops above the template's logo. Needs officer and flextable (Suggests).
 
 # bctu 0.27.0
 

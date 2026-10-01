@@ -2,8 +2,8 @@
 #                                                                              #
 #   Package:      bctu                                                         #
 #   Script:       slides.R                                                     #
-#   Description:  PowerPoint decks on the University of Birmingham slide       #
-#                 template: a title slide, section dividers, and one slide per #
+#   Description:  PowerPoint decks on the BCTU slide template (UoB design,    #
+#                 BCTU logo): a title slide, section dividers, and one slide per #
 #                 figure or table, built with officer and flextable.           #
 #                                                                              #
 #   Author:       Jack Hall                                                    #
@@ -14,10 +14,10 @@
 SLIDE_MASTER <- "UOB"
 NOTE_PT <- 14
 
-#' PowerPoint decks on the UoB template
+#' PowerPoint decks on the BCTU template
 #'
-#' `trial_slides()` writes a PowerPoint deck on the bundled University of
-#' Birmingham slide template: a title slide, then one slide per element of
+#' `trial_slides()` writes a PowerPoint deck on the bundled BCTU slide
+#' template (University of Birmingham design with the BCTU logo): a title slide, then one slide per element of
 #' `slides`. An element is a section divider (`slide_section()`) or a content
 #' slide (`slide_content()`) holding a ggplot figure or a data frame.
 #'
@@ -33,8 +33,13 @@ NOTE_PT <- 14
 #' @param path Output `.pptx` path.
 #' @param title,subtitle Title slide text.
 #' @param slides A list of `slide_section()` and `slide_content()` elements.
+#' @param logo Optional path to a trial logo (PNG, GIF or JPEG). As the
+#'   `trial-logo` of [trial_report()], it mirrors the template's BCTU logo on
+#'   the title slide and every content slide: as far from the right edge as
+#'   the BCTU logo is from the left, centred on it vertically, and no taller
+#'   or wider than it.
 #' @param template Path to a `.potx` or `.pptx` template with an `"UOB"`
-#'   master. Default the bundled UoB template from `slide_template()`.
+#'   master. Default the bundled BCTU template from `slide_template()`.
 #' @return `trial_slides()`: `path`, invisibly.
 #' @examples
 #' \dontrun{
@@ -44,7 +49,7 @@ NOTE_PT <- 14
 #'        slide_content("Form return rates", table, note = "Forms returned / due (%).")))
 #' }
 #' @export
-trial_slides <- function(path, title, subtitle = NULL, slides, template = slide_template()) {
+trial_slides <- function(path, title, subtitle = NULL, slides, template = slide_template(), logo = NULL) {
   for (pkg in c("officer", "flextable", "ggplot2"))
     if (!requireNamespace(pkg, quietly = TRUE))
       cli::cli_abort(c("Package {.pkg {pkg}} is needed for {.fn trial_slides}.",
@@ -56,8 +61,14 @@ trial_slides <- function(path, title, subtitle = NULL, slides, template = slide_
   deck <- officer::add_slide(deck, "Light Title Slide", SLIDE_MASTER)
   deck <- officer::ph_with(deck, title, officer::ph_location_type("ctrTitle"))
   if (!is.null(subtitle)) deck <- officer::ph_with(deck, subtitle, officer::ph_location_type("subTitle"))
-  area <- officer::layout_properties(deck, "Title and Content", SLIDE_MASTER)
-  area <- area[area$ph_label == "3. Content Placeholder", ]
+  if (!is.null(logo) && !file.exists(logo)) cli::cli_abort("{.arg logo}: no image at {.file {logo}}.")
+  deck <- slide_logo(deck, "Light Title Slide", logo)
+  layout <- officer::layout_properties(deck, "Title and Content", SLIDE_MASTER)
+  area <- layout[layout$ph_label == "3. Content Placeholder", ]
+  # Stop the content above any picture (the logo) that reaches into the content area
+  below <- layout[grepl("^Picture", layout$ph_label) & layout$offy > area$offy &
+                    layout$offx < area$offx + area$cx & layout$offx + layout$cx > area$offx, ]
+  if (nrow(below)) area$cy <- min(area$cy, min(below$offy) - area$offy - 0.1)
 
   for (s in slides) {
     if (inherits(s, "slide_section")) {
@@ -74,6 +85,7 @@ trial_slides <- function(path, title, subtitle = NULL, slides, template = slide_
              else slide_table_pages(s$content, area$cx, height, s$font_size, s$bold_rows, s$bold_headings, s$breaks)
     for (k in seq_along(pages)) {
       deck <- officer::add_slide(deck, "Title and Content", SLIDE_MASTER)
+      deck <- slide_logo(deck, "Title and Content", logo)
       deck <- officer::ph_with(deck, if (k == 1L) s$title else paste(s$title, "(continued)"),
                                officer::ph_location_type("title"))
       box <- officer::ph_location(left = area$offx, top = area$offy, width = area$cx, height = height)
@@ -127,10 +139,10 @@ slide_content <- function(title, content, note = NULL, bold_rows = NULL, bold_he
                  bold_headings = bold_headings, font_size = font_size, breaks = breaks), class = "slide_content")
 }
 
-#' @describeIn trial_slides Path to the bundled UoB slide template
+#' @describeIn trial_slides Path to the bundled BCTU slide template
 #' @export
 slide_template <- function() {
-  system.file("powerpoint", "uob-slides-template.potx", package = "bctu", mustWork = TRUE)
+  system.file("powerpoint", "bctu-slides-template.potx", package = "bctu", mustWork = TRUE)
 }
 
 #' A .pptx copy of a template that officer can open
@@ -154,6 +166,47 @@ template_as_pptx <- function(template) {
   out <- file.path(work, "template.pptx")
   zip::zip(out, list.files(work, recursive = TRUE, all.files = TRUE), root = work)
   out
+}
+
+#' Approximate Calibri text widths, in ems
+#'
+#' Capitals 0.6, digits 0.51, lower case 0.47, spaces 0.23, per cent 0.72,
+#' slash 0.39 and other characters 0.3 em, close enough to size table columns
+#' and predict wrapping.
+#' @param x A character vector.
+#' @return Widths in ems, one per element.
+#' @noRd
+text_em <- function(x) {
+  vapply(strsplit(as.character(x), ""), function(ch)
+    sum(ifelse(grepl("[A-Z]", ch), 0.6, ifelse(grepl("[0-9]", ch), 0.51,
+        ifelse(grepl("[a-z]", ch), 0.47, ifelse(ch == " ", 0.23,
+        ifelse(ch == "%", 0.72, ifelse(ch == "/", 0.39, 0.3))))))), numeric(1))
+}
+
+#' Place the trial logo opposite the layout's BCTU logo
+#'
+#' The layout's logo is its smallest picture in the left half of the slide.
+#' The trial logo is scaled to fit that logo's box with its aspect ratio
+#' kept, right-aligned to the mirrored margin and centred on it vertically.
+#' A layout whose logo is in the right half gets no trial logo.
+#' @param deck An officer rpptx with the slide just added.
+#' @param layout The slide's layout name.
+#' @param logo Path to the trial logo, or `NULL`.
+#' @return `deck`.
+#' @noRd
+slide_logo <- function(deck, layout, logo) {
+  if (is.null(logo)) return(deck)
+  size <- officer::slide_size(deck)
+  props <- officer::layout_properties(deck, layout, SLIDE_MASTER)
+  pics <- props[grepl("^Picture", props$ph_label) & props$cx < size$width / 2 & props$offx < size$width / 2, ]
+  if (!nrow(pics)) return(deck)
+  ours <- pics[which.min(pics$cx * pics$cy), ]
+  px <- image_size_px(logo)
+  scale <- min(ours$cx / px$width, ours$cy / px$height)
+  w <- px$width * scale; h <- px$height * scale
+  officer::ph_with(deck, officer::external_img(logo, width = w, height = h),
+                   officer::ph_location(left = size$width - ours$offx - w, top = ours$offy + (ours$cy - h) / 2,
+                                        width = w, height = h))
 }
 
 #' A ggplot with its text layers at least a slide-readable size
@@ -196,7 +249,7 @@ slide_background <- function(template) {
 #' take their natural width; when the table is wider than the space, the wide
 #' columns share what the narrow ones leave and their text wraps. A table
 #' that does not fit at `min_size` goes onto pages, each with the header,
-#' filled to the estimated height (from an average Calibri character width).
+#' filled to the estimated height (from approximate Calibri character widths).
 #' A data frame with no column names gets no header row.
 #' @param df A data frame.
 #' @param width,height The space available, in inches.
@@ -208,7 +261,6 @@ slide_background <- function(template) {
 slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bold_headings = TRUE, breaks = NULL) {
   height <- 0.95 * height  # margin: PowerPoint and LibreOffice set rows slightly taller than the estimate
   MAX_SIZE <- 24
-  CHAR_EM  <- 0.5    # average Calibri character width, in ems
   PAD_IN   <- 0.2    # left plus right cell padding, inches
   ROW_PAD  <- 0.06   # top plus bottom cell padding, inches
   HEADER <- "#007838"; BAND1 <- "#CBE3D5"; BAND2 <- "#E7F1EB"
@@ -222,10 +274,10 @@ slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bol
   indent_in <- 0.25 * depth
 
   layout_at <- function(size) {
-    char_in <- CHAR_EM * size / 72
+    char_in <- size / 72  # one em, in inches; text widths below are in ems
     cells <- if (show_header) rbind(header, as.matrix(df)) else as.matrix(df)
-    chars <- nchar(cells)
-    natural <- apply(chars, 2, max) * char_in + PAD_IN
+    chars <- matrix(text_em(cells), nrow(cells))
+    natural <- apply(chars, 2, max) * char_in * 1.15 + PAD_IN  # 15% slack over the estimate
     natural[1] <- natural[1] + max(indent_in)
     widths <- natural
     if (sum(natural) > width) {
@@ -306,6 +358,7 @@ slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bol
     ft <- flextable::border_remove(ft)
     ft <- flextable::border_inner(ft, border = white, part = "all")
     if (show_header) ft <- flextable::hline(ft, border = white, part = "header")
-    flextable::width(ft, width = widths)
+    ft <- flextable::width(ft, width = widths)
+    flextable::set_table_properties(ft, layout = "fixed")  # keep the computed column widths
   })
 }

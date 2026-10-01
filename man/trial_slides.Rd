@@ -5,9 +5,16 @@
 \alias{slide_section}
 \alias{slide_content}
 \alias{slide_template}
-\title{PowerPoint decks on the UoB template}
+\title{PowerPoint decks on the BCTU template}
 \usage{
-trial_slides(path, title, subtitle = NULL, slides, template = slide_template())
+trial_slides(
+  path,
+  title,
+  subtitle = NULL,
+  slides,
+  template = slide_template(),
+  logo = NULL
+)
 
 slide_section(title)
 
@@ -31,7 +38,13 @@ slide_template()
 \item{slides}{A list of \code{slide_section()} and \code{slide_content()} elements.}
 
 \item{template}{Path to a \code{.potx} or \code{.pptx} template with an \code{"UOB"}
-master. Default the bundled UoB template from \code{slide_template()}.}
+master. Default the bundled BCTU template from \code{slide_template()}.}
+
+\item{logo}{Optional path to a trial logo (PNG, GIF or JPEG). As the
+\code{trial-logo} of \code{\link[=trial_report]{trial_report()}}, it mirrors the template's BCTU logo on
+the title slide and every content slide: as far from the right edge as
+the BCTU logo is from the left, centred on it vertically, and no taller
+or wider than it.}
 
 \item{content}{A ggplot or a data frame.}
 
@@ -56,8 +69,8 @@ does not fit at \code{font_size} is an error.}
 \code{trial_slides()}: \code{path}, invisibly.
 }
 \description{
-\code{trial_slides()} writes a PowerPoint deck on the bundled University of
-Birmingham slide template: a title slide, then one slide per element of
+\code{trial_slides()} writes a PowerPoint deck on the bundled BCTU slide
+template (University of Birmingham design with the BCTU logo): a title slide, then one slide per element of
 \code{slides}. An element is a section divider (\code{slide_section()}) or a content
 slide (\code{slide_content()}) holding a ggplot figure or a data frame.
 }
@@ -77,7 +90,7 @@ Needs the officer and flextable packages.
 
 \item \code{slide_content()}: A slide holding one figure or table
 
-\item \code{slide_template()}: Path to the bundled UoB slide template
+\item \code{slide_template()}: Path to the bundled BCTU slide template
 
 }}
 \examples{
