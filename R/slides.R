@@ -71,7 +71,7 @@ trial_slides <- function(path, title, subtitle = NULL, slides, template = slide_
               else ceiling(nchar(s$note) * 0.5 * NOTE_PT / 72 / area$cx) * NOTE_PT * 1.25 / 72 + 0.1
     height <- area$cy - note_h
     pages <- if (inherits(s$content, "ggplot")) list(s$content)
-             else slide_table_pages(s$content, area$cx, height, s$font_size, s$bold_rows, s$bold_headings)
+             else slide_table_pages(s$content, area$cx, height, s$font_size, s$bold_rows, s$bold_headings, s$breaks)
     for (k in seq_along(pages)) {
       deck <- officer::add_slide(deck, "Title and Content", SLIDE_MASTER)
       deck <- officer::ph_with(deck, if (k == 1L) s$title else paste(s$title, "(continued)"),
@@ -109,16 +109,22 @@ slide_section <- function(title) {
 #' @param bold_rows,bold_headings For a table, as in [render_table()]: body
 #'   rows shown in bold, and whether unindented rows of an indented table are
 #'   bold.
+#' @param breaks For a table, where it splits across slides: `NULL`
+#'   (default) splits it automatically; `integer(0)` keeps it on one slide;
+#'   row numbers start a new slide at each of those body rows. With set
+#'   breaks the font is the largest that fits every slide, and a slide that
+#'   does not fit at `font_size` is an error.
 #' @param font_size For a table, the smallest text size in points (the
 #'   table grows to fill the slide, up to 24); for a figure, the base text
 #'   size. At least 14.
 #' @export
-slide_content <- function(title, content, note = NULL, bold_rows = NULL, bold_headings = TRUE, font_size = 16) {
+slide_content <- function(title, content, note = NULL, bold_rows = NULL, bold_headings = TRUE, font_size = 16,
+                          breaks = NULL) {
   if (!inherits(content, "ggplot") && !is.data.frame(content))
     cli::cli_abort("{.arg content} must be a ggplot or a data frame.")
   if (font_size < 14) cli::cli_abort("{.arg font_size} must be at least 14 points.")
   structure(list(title = title, content = content, note = note, bold_rows = bold_rows,
-                 bold_headings = bold_headings, font_size = font_size), class = "slide_content")
+                 bold_headings = bold_headings, font_size = font_size, breaks = breaks), class = "slide_content")
 }
 
 #' @describeIn trial_slides Path to the bundled UoB slide template
@@ -196,9 +202,10 @@ slide_background <- function(template) {
 #' @param width,height The space available, in inches.
 #' @param min_size Smallest font size, points.
 #' @param bold_rows,bold_headings As in [render_table()].
+#' @param breaks As in `slide_content()`.
 #' @return A list of flextables, one per slide.
 #' @noRd
-slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bold_headings = TRUE) {
+slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bold_headings = TRUE, breaks = NULL) {
   height <- 0.95 * height  # margin: PowerPoint and LibreOffice set rows slightly taller than the estimate
   MAX_SIZE <- 24
   CHAR_EM  <- 0.5    # average Calibri character width, in ems
@@ -232,7 +239,9 @@ slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bol
     list(size = size, widths = widths, wraps = sum(natural) > width,
          header_in = if (show_header) row_in[1] else 0, body_in = if (show_header) row_in[-1] else row_in)
   }
-  fits <- function(l) l$header_in + sum(l$body_in) <= height
+  set_page <- if (is.null(breaks)) NULL else cumsum(seq_len(nrow(df)) %in% breaks) + 1L
+  fits <- function(l) if (is.null(set_page)) l$header_in + sum(l$body_in) <= height
+                      else all(l$header_in + tapply(l$body_in, set_page, sum) <= height)
   sizes <- seq(MAX_SIZE, min_size)
   layouts <- lapply(sizes, layout_at)
   pick <- Filter(function(l) fits(l) && !l$wraps, layouts)
@@ -241,6 +250,8 @@ slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bol
   size <- fit$size
   if (fit$header_in + max(fit$body_in) > height)
     cli::cli_abort("A row of this table does not fit one slide at {size} pt; shorten its text.")
+  if (!is.null(set_page) && !fits(fit))
+    cli::cli_abort("With the breaks given, a slide of this table does not fit at {min_size} pt; add a break.")
 
   # Pages: first count how many a plain fill needs, then refill the same
   # number of pages to an even share each, breaking at a section row (an
@@ -259,12 +270,16 @@ slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bol
     }
     page
   }
-  n_pages <- max(fill(Inf))
-  share <- sum(fit$body_in) / n_pages
-  page <- fill(share)
-  while (max(page) > n_pages) {  # raise the share until the even fill needs no more pages than the plain one
-    share <- share * 1.05
+  if (!is.null(set_page)) {
+    page <- set_page
+  } else {
+    n_pages <- max(fill(Inf))
+    share <- sum(fit$body_in) / n_pages
     page <- fill(share)
+    while (max(page) > n_pages) {  # raise the share until the even fill needs no more pages than the plain one
+      share <- share * 1.05
+      page <- fill(share)
+    }
   }
   widths <- fit$widths
 

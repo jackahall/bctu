@@ -17,7 +17,8 @@ slide_content(
   note = NULL,
   bold_rows = NULL,
   bold_headings = TRUE,
-  font_size = 16
+  font_size = 16,
+  breaks = NULL
 )
 
 slide_template()
@@ -44,6 +45,12 @@ bold.}
 \item{font_size}{For a table, the smallest text size in points (the
 table grows to fill the slide, up to 24); for a figure, the base text
 size. At least 14.}
+
+\item{breaks}{For a table, where it splits across slides: \code{NULL}
+(default) splits it automatically; \code{integer(0)} keeps it on one slide;
+row numbers start a new slide at each of those body rows. With set
+breaks the font is the largest that fits every slide, and a slide that
+does not fit at \code{font_size} is an error.}
 }
 \value{
 \code{trial_slides()}: \code{path}, invisibly.
