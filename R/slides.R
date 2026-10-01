@@ -199,6 +199,7 @@ slide_background <- function(template) {
 #' @return A list of flextables, one per slide.
 #' @noRd
 slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bold_headings = TRUE) {
+  height <- 0.95 * height  # margin: PowerPoint and LibreOffice set rows slightly taller than the estimate
   MAX_SIZE <- 24
   CHAR_EM  <- 0.5    # average Calibri character width, in ems
   PAD_IN   <- 0.2    # left plus right cell padding, inches
@@ -227,7 +228,7 @@ slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bol
     room <- matrix(widths - PAD_IN, nrow(cells), ncol(cells), byrow = TRUE)
     room[, 1] <- room[, 1] - c(if (show_header) 0, indent_in)
     lines <- pmax(ceiling(chars * char_in / pmax(room, char_in)), 1)  # matrix first, so pmax keeps its dimensions
-    row_in <- apply(lines, 1, max) * size * 1.15 / 72 + ROW_PAD
+    row_in <- apply(lines, 1, max) * size * 1.2 / 72 + ROW_PAD
     list(size = size, widths = widths, wraps = sum(natural) > width,
          header_in = if (show_header) row_in[1] else 0, body_in = if (show_header) row_in[-1] else row_in)
   }
@@ -241,10 +242,29 @@ slide_table_pages <- function(df, width, height, min_size, bold_rows = NULL, bol
   if (fit$header_in + max(fit$body_in) > height)
     cli::cli_abort("A row of this table does not fit one slide at {size} pt; shorten its text.")
 
-  page <- integer(nrow(df)); used <- fit$header_in; p <- 1L
-  for (i in seq_len(nrow(df))) {
-    if (used + fit$body_in[i] > height) { p <- p + 1L; used <- fit$header_in }
-    page[i] <- p; used <- used + fit$body_in[i]
+  # Pages: first count how many a plain fill needs, then refill the same
+  # number of pages to an even share each, breaking at a section row (an
+  # unindented row of an indented table) once a page is past 60% of its
+  # share, so a section is not split where avoidable and no page is left
+  # with a few stray rows.
+  section <- any(depth > 0L) & depth == 0L
+  fill <- function(share) {
+    page <- integer(nrow(df)); used <- 0; p <- 1L
+    for (i in seq_len(nrow(df))) {
+      full  <- fit$header_in + used + fit$body_in[i] > height
+      over  <- used + fit$body_in[i] > share
+      early <- section[i] && used > share * 0.6
+      if (i > 1L && used > 0 && (full || over || early)) { p <- p + 1L; used <- 0 }
+      page[i] <- p; used <- used + fit$body_in[i]
+    }
+    page
+  }
+  n_pages <- max(fill(Inf))
+  share <- sum(fit$body_in) / n_pages
+  page <- fill(share)
+  while (max(page) > n_pages) {  # raise the share until the even fill needs no more pages than the plain one
+    share <- share * 1.05
+    page <- fill(share)
   }
   widths <- fit$widths
 
