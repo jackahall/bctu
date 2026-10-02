@@ -245,6 +245,15 @@ local function confidential_page(text)
     '</w:sectPr></w:pPr></w:p>')
 end
 
+-- Hidden bookmark before an autofit table; repair_report_docx() reads it to set
+-- the table's width (window: 100% of the page; contents: auto) and removes it.
+local function autofit_marker(mode, n)
+  local id = tostring(900000 + n)
+  return pandoc.RawBlock("openxml",
+    '<w:bookmarkStart w:id="' .. id .. '" w:name="_bctu_autofit_' .. mode .. '"/>' ..
+    '<w:bookmarkEnd w:id="' .. id .. '"/>')
+end
+
 local function empty_para()
   return pandoc.RawBlock("openxml", '<w:p/>')
 end
@@ -256,8 +265,9 @@ end
 --   renders in landscape (the inversion is because a sectPr in a paragraph
 --   defines the section ENDING at that paragraph, not the one starting).
 --   `::: {.landscape .a3}` gives an A3 landscape section.
--- - `::: autofit` divs give their tables default column widths, so Word
---   fits each column to its contents.
+-- - `::: {.autofit .window}` and `::: {.autofit .contents}` divs give their
+--   tables default column widths, so Word fits each column to its contents,
+--   and mark each table for repair_report_docx() to set its width.
 -- - Figures and Tables get sequential numbering and the caption is moved
 --   above the content, styled "ImageCaption" (figures) or "TableCaption"
 --   (tables) -- both styles already live in reference.docx. A figure's
@@ -347,14 +357,19 @@ local function process_blocks(blocks, counters, opens_section)
     if is_page_break(b) and is_landscape_div(blocks[skip_page_break(blocks, i)]) then
       i = next_content(blocks, i + 1)
     elseif is_autofit_div(b) then
-      -- default column widths: Word sizes the columns to their contents
+      -- default column widths, so Word sizes the columns to their contents
+      local mode = b.classes:includes("contents") and "contents" or "window"
+      local spliced = pandoc.Blocks({})
       for _, inner in ipairs(b.content) do
         if inner.t == "Table" then
           for k, cs in ipairs(inner.colspecs) do inner.colspecs[k] = { cs[1], pandoc.ColWidthDefault } end
+          counters.autofit = counters.autofit + 1
+          spliced:insert(autofit_marker(mode, counters.autofit))
         end
+        spliced:insert(inner)
       end
       blocks:remove(i)
-      for k = #b.content, 1, -1 do blocks:insert(i, b.content[k]) end
+      for k = #spliced, 1, -1 do blocks:insert(i, spliced[k]) end
       i = next_content(blocks, i)
     elseif is_landscape_div(b) then
       local at_section_start = (#out == 0 and opens_section) or is_section_break(out[#out])
@@ -485,7 +500,7 @@ function Pandoc(doc)
     if not starts_landscape then blocks:insert(page_break()) end  -- a leading landscape div's section break ends the TOC page
   end
 
-  local counters = { fig = 0, tbl = 0 }
+  local counters = { fig = 0, tbl = 0, autofit = 0 }
   for _, b in ipairs(process_blocks(doc.blocks, counters, not toc)) do
     blocks:insert(b)
   end

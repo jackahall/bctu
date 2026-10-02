@@ -24,7 +24,7 @@ PAGE_MARGIN_TWIPS <- 2880L
 #' Applied by [trial_report()] to the file pandoc has just written. It binds
 #' the title-page headers and footers to the relationship ids pandoc chose,
 #' widens full-width images inside landscape sections to the landscape text
-#' width, keeps each caption with the start of its table, drops the empty
+#' width, sets each autofit table's width (see [render_table()]), keeps each caption with the start of its table, drops the empty
 #' final section a report ends in when its last content is landscape,
 #' applies any theme given, fills the table of contents with the headings
 #' (see `populate_toc()`), writes the running header and footer field
@@ -65,6 +65,7 @@ repair_report_docx <- function(path, theme = NULL, template = report_template(),
   rels <- readChar(rels_path, file.size(rels_path), useBytes = TRUE)
   document <- bind_header_footer_ids(document, rels, path)
   document <- widen_landscape_images(document)
+  document <- set_autofit_widths(document)
   document <- keep_table_rows_together(document)
   document <- drop_trailing_empty_section(document)
   document <- gsub(' w:dirty="true"', "", document, fixed = TRUE)
@@ -133,6 +134,33 @@ bind_header_footer_ids <- function(document, rels, path) {
                      paste0("r:id=\"", id, "\""), document, fixed = TRUE)
   }
   document
+}
+
+# ---- Autofit table widths ----
+
+#' Set the width of each autofit table
+#'
+#' The report filter leaves an autofit table with automatic width and marks it
+#' with a hidden bookmark naming its mode. A "window" table is set to the full
+#' text width (100%), so Word fits the columns to their contents and then
+#' stretches them to the page, keeping their relative widths. A "contents"
+#' table keeps its automatic width. The bookmark is removed.
+#'
+#' @param document The document.xml text.
+#' @return The document.xml text.
+#' @noRd
+set_autofit_widths <- function(document) {
+  marker <- '<w:bookmarkStart w:id="[0-9]+" w:name="_bctu_autofit_(window|contents)"/><w:bookmarkEnd w:id="[0-9]+"/>'
+  repeat {
+    m <- regexpr(marker, document)
+    if (m < 0L) return(document)
+    found <- regmatches(document, m)
+    before <- substring(document, 1L, m - 1L)
+    after <- substring(document, m + attr(m, "match.length"))
+    if (grepl("_bctu_autofit_window", found, fixed = TRUE))
+      after <- sub("<w:tblW [^>]*/>", '<w:tblW w:type="pct" w:w="5000"/>', after)
+    document <- paste0(before, after)
+  }
 }
 
 # ---- Landscape image widths ----

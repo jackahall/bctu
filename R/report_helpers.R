@@ -241,6 +241,13 @@ escape_list_marker <- function(x) {
 #' @name render_table
 NULL
 
+# `autofit` as the div class: "window" (TRUE) or "contents"
+autofit_mode <- function(autofit) {
+  if (isTRUE(autofit)) return("window")
+  if (is_string(autofit) && autofit %in% c("window", "contents")) return(autofit)
+  cli::cli_abort('{.arg autofit} must be {.code TRUE}, {.code FALSE}, {.val window} or {.val contents}.')
+}
+
 #' @describeIn render_table Tables for Rmd reports
 #'
 #' Converts a data frame to a pandoc grid table ready for `cat()` in a chunk
@@ -265,10 +272,12 @@ NULL
 #'   every column, for example the primary outcome row of an outcome table.
 #' @param bold_headings When `TRUE` (default), unindented rows of an indented
 #'   table are shown in bold. Set `FALSE` to bold only `bold_rows`.
-#' @param autofit When `TRUE`, the table is wrapped in an `::: autofit` div,
-#'   so in a [trial_report()] Word fits each column to its contents (as Word's
-#'   AutoFit Contents) instead of using the widths from `caps`. Default
-#'   `FALSE`.
+#' @param autofit In a [trial_report()], how Word sizes the columns. `FALSE`
+#'   (default) keeps the widths from `caps`. `TRUE` or `"window"` fits each
+#'   column to its contents and then widens the table to the page width,
+#'   keeping the columns' relative widths (Word's AutoFit Contents, then
+#'   AutoFit Window). `"contents"` fits the columns to their contents only
+#'   (AutoFit Contents).
 #' @return `render_table()`: `render_table()`: A single string holding the table (and caption).
 #' @examples
 #' tab <- data.frame(Characteristic = c("Sex", indent(c("Male", "Female"))),
@@ -334,6 +343,7 @@ render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
 
   table <- grid_table(cells, widths, span_rows, levels)
   if (!is.null(caption)) table <- paste0("Table: ", caption, "\n\n", table)
-  if (autofit) table <- paste0("::: autofit\n\n", table, "\n\n:::\n")
+  if (!isFALSE(autofit))
+    table <- paste0("::: {.autofit .", autofit_mode(autofit), "}\n\n", table, "\n\n:::\n")
   table
 }

@@ -129,10 +129,12 @@ test_that("trial_report builds a word_document format with the bundled assets", 
   expect_warning(trial_report(reference_docx = "other.docx"), "instead of the bundled")
 })
 
-test_that("render_table(autofit = TRUE) wraps the table in an autofit div", {
+test_that("render_table(autofit =) wraps the table in an autofit div naming its mode", {
   tab <- data.frame(a = "x", b = "1")
-  out <- render_table(tab, caption = "A table.", autofit = TRUE)
-  expect_match(out, "^::: autofit\n\nTable: A table\\.")
-  expect_match(out, "\n:::\n$")
+  expect_match(render_table(tab, caption = "A table.", autofit = TRUE), "^::: \\{\\.autofit \\.window\\}\n\nTable: A table\\.")
+  expect_match(render_table(tab, autofit = "window"), "^::: \\{\\.autofit \\.window\\}")
+  expect_match(render_table(tab, autofit = "contents"), "^::: \\{\\.autofit \\.contents\\}")
+  expect_match(render_table(tab, autofit = TRUE), "\n:::\n$")
   expect_false(grepl(":::", render_table(tab), fixed = TRUE))
+  expect_error(render_table(tab, autofit = "page"), "autofit")
 })

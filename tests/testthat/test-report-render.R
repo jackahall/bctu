@@ -88,15 +88,18 @@ test_that("A3 landscape sections and autofit tables render as asked", {
     "::: {.landscape .a3}", "",
     "```{r, echo=FALSE, results='asis'}",
     "cat(bctu::render_table(tab, caption = 'Fitted.', autofit = TRUE), '\\n')",
+    "cat(bctu::render_table(tab, caption = 'Contents.', autofit = 'contents'), '\\n')",
     "```", "", ":::", ""), rmd)
   out <- rmarkdown::render(rmd, output_file = "a3.docx", output_dir = dir, quiet = TRUE)
   document <- paste(readLines(unz(out, "word/document.xml"), warn = FALSE), collapse = "")
   tables <- regmatches(document, gregexpr("<w:tbl>.*?</w:tbl>", document))[[1]]
   tables <- tables[!grepl("TitlePageMeta", tables, fixed = TRUE)]
-  expect_length(tables, 2L)
+  expect_length(tables, 3L)
   expect_true(grepl('<w:tblLayout w:type="fixed"', tables[1], fixed = TRUE))
-  expect_false(grepl('<w:tblLayout w:type="fixed"', tables[2], fixed = TRUE))
-  expect_true(grepl('<w:tblW w:type="auto"', tables[2], fixed = TRUE))
+  expect_false(any(grepl('<w:tblLayout w:type="fixed"', tables[2:3], fixed = TRUE)))
+  expect_true(grepl('<w:tblW w:type="pct" w:w="5000"/>', tables[2], fixed = TRUE))
+  expect_true(grepl('<w:tblW w:type="auto"', tables[3], fixed = TRUE))
+  expect_false(grepl("_bctu_autofit", document, fixed = TRUE))
   expect_true(grepl('<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>', document, fixed = TRUE))
   expect_true(grepl('<w:pgSz w:w="23811" w:h="16838" w:orient="landscape"/>', document, fixed = TRUE))
   expect_false(grepl('</w:sectPr></w:pPr></w:p>\\s*<w:p><w:pPr><w:sectPr>', document))

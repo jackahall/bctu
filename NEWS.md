@@ -1,3 +1,9 @@
+# bctu 0.28.4
+
+## Changes
+
+* `render_table(autofit =)` now has two modes. `TRUE` or `"window"` fits each column to its contents and then widens the table to the page width, keeping the columns' relative widths (Word's AutoFit Contents, then AutoFit Window). `"contents"` fits the columns to their contents only, as `TRUE` did in 0.28.3.
+
 # bctu 0.28.3
 
 ## Changes

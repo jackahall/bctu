@@ -176,7 +176,7 @@ report (Word)"} opens a skeleton with every key filled in.
 Applied by \code{\link[=trial_report]{trial_report()}} to the file pandoc has just written. It binds
 the title-page headers and footers to the relationship ids pandoc chose,
 widens full-width images inside landscape sections to the landscape text
-width, keeps each caption with the start of its table, drops the empty
+width, sets each autofit table's width (see \code{\link[=render_table]{render_table()}}), keeps each caption with the start of its table, drops the empty
 final section a report ends in when its last content is landscape,
 applies any theme given, fills the table of contents with the headings
 (see \code{populate_toc()}), writes the running header and footer field
