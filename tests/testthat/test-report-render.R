@@ -52,6 +52,26 @@ test_that("a full trial report renders with every layout feature in place", {
   expect_null(report_provenance(system.file("rmarkdown", "templates", "report", "resources", "reference.docx", package = "bctu")))
 })
 
+test_that("a report whose body starts with a landscape section has no blank page before it", {
+  skip_if_not_installed("rmarkdown")
+  skip_if(!nzchar(Sys.which("pandoc")), "pandoc not available")
+  for (toc in c("false", "true")) {
+    dir <- withr::local_tempdir()
+    rmd <- file.path(dir, "wide.Rmd")
+    writeLines(c(
+      "---", 'trial-short-name: "TEST"', 'trial-long-name: "A test trial"', 'report-type: "Test Report"',
+      'confidential: "Confidential."', paste("include-toc:", toc), "output:", "  bctu::trial_report: default", "---", "",
+      "::: landscape", "", "# Wide", "", "Wide text.", "", ":::", ""), rmd)
+    out <- rmarkdown::render(rmd, output_file = "wide.docx", output_dir = dir, quiet = TRUE)
+    document <- paste(readLines(unz(out, "word/document.xml"), warn = FALSE), collapse = "")
+    empty_section <- '</w:sectPr></w:pPr></w:p>\\s*<w:p><w:pPr><w:sectPr>'
+    break_then_section <- '<w:br w:type="page"/></w:r></w:p>\\s*<w:p><w:pPr><w:sectPr>'
+    expect_false(grepl(empty_section, document), label = paste("empty section, include-toc:", toc))
+    expect_false(grepl(break_then_section, document), label = paste("page break before a section break, include-toc:", toc))
+    expect_equal(lengths(regmatches(document, gregexpr('w:orient="landscape"', document)))[[1]], 1L)
+  }
+})
+
 test_that("theme values are validated", {
   expect_error(resolve_theme(report_theme(font.body = 3)), "typeface name")
   expect_error(resolve_theme(report_theme(font.size = NA_real_)), "positive number")

@@ -318,7 +318,9 @@ local function skip_page_break(blocks, i)
   return j
 end
 
-local function process_blocks(blocks, counters)
+-- `opens_section`: the blocks start a new section (the front matter ended in a
+-- section break), so a leading landscape div needs no portrait break before it.
+local function process_blocks(blocks, counters, opens_section)
   local out = pandoc.Blocks({})
   local i = next_content(blocks, 1)
   while blocks[i] ~= nil do
@@ -326,7 +328,7 @@ local function process_blocks(blocks, counters)
     if is_page_break(b) and is_landscape_div(blocks[skip_page_break(blocks, i)]) then
       i = next_content(blocks, i + 1)
     elseif is_landscape_div(b) then
-      out:insert(body_section_break("portrait"))
+      if not (opens_section and #out == 0) then out:insert(body_section_break("portrait")) end
       local j = i
       local following = skip_page_break(blocks, j + 1)
       while true do
@@ -443,15 +445,17 @@ function Pandoc(doc)
   local confidential = as_string(m["confidential"])
   if confidential then blocks:insert(confidential_page(confidential)) end
 
-  if as_bool(m["include-toc"]) then
+  local toc = as_bool(m["include-toc"])
+  local starts_landscape = is_landscape_div(doc.blocks[skip_page_break(doc.blocks, 1)])
+  if toc then
     local depth = tonumber(as_string(m["toc-depth"])) or 3
     local title = as_string(m["toc-title"]) or "Table of Contents"
     blocks:insert(toc_block(title, depth))
-    blocks:insert(page_break())
+    if not starts_landscape then blocks:insert(page_break()) end  -- a leading landscape div's section break ends the TOC page
   end
 
   local counters = { fig = 0, tbl = 0 }
-  for _, b in ipairs(process_blocks(doc.blocks, counters)) do
+  for _, b in ipairs(process_blocks(doc.blocks, counters, not toc)) do
     blocks:insert(b)
   end
 

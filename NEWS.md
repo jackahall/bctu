@@ -1,3 +1,9 @@
+# bctu 0.28.2
+
+## Changes
+
+* `trial_report()`: a report whose body starts with a `::: landscape` section no longer has a blank page before it. The landscape section now follows the front matter's own section break, or ends the table of contents page.
+
 # bctu 0.28.1
 
 ## Changes
