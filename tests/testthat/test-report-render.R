@@ -72,6 +72,36 @@ test_that("a report whose body starts with a landscape section has no blank page
   }
 })
 
+test_that("A3 landscape sections and autofit tables render as asked", {
+  skip_if_not_installed("rmarkdown")
+  skip_if(!nzchar(Sys.which("pandoc")), "pandoc not available")
+  dir <- withr::local_tempdir()
+  rmd <- file.path(dir, "a3.Rmd")
+  writeLines(c(
+    "---", 'trial-short-name: "TEST"', 'trial-long-name: "A test trial"', 'report-type: "Test Report"',
+    "include-toc: false", "output:", "  bctu::trial_report: default", "---", "",
+    "```{r, echo=FALSE, results='asis'}",
+    "tab <- data.frame(a = c('Short', 'Longer label'), b = c('1', '2'))",
+    "cat(bctu::render_table(tab, caption = 'Fixed.'), '\\n')",
+    "```", "",
+    "::: landscape", "", "A4 wide.", "", ":::", "",
+    "::: {.landscape .a3}", "",
+    "```{r, echo=FALSE, results='asis'}",
+    "cat(bctu::render_table(tab, caption = 'Fitted.', autofit = TRUE), '\\n')",
+    "```", "", ":::", ""), rmd)
+  out <- rmarkdown::render(rmd, output_file = "a3.docx", output_dir = dir, quiet = TRUE)
+  document <- paste(readLines(unz(out, "word/document.xml"), warn = FALSE), collapse = "")
+  tables <- regmatches(document, gregexpr("<w:tbl>.*?</w:tbl>", document))[[1]]
+  tables <- tables[!grepl("TitlePageMeta", tables, fixed = TRUE)]
+  expect_length(tables, 2L)
+  expect_true(grepl('<w:tblLayout w:type="fixed"', tables[1], fixed = TRUE))
+  expect_false(grepl('<w:tblLayout w:type="fixed"', tables[2], fixed = TRUE))
+  expect_true(grepl('<w:tblW w:type="auto"', tables[2], fixed = TRUE))
+  expect_true(grepl('<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>', document, fixed = TRUE))
+  expect_true(grepl('<w:pgSz w:w="23811" w:h="16838" w:orient="landscape"/>', document, fixed = TRUE))
+  expect_false(grepl('</w:sectPr></w:pPr></w:p>\\s*<w:p><w:pPr><w:sectPr>', document))
+})
+
 test_that("theme values are validated", {
   expect_error(resolve_theme(report_theme(font.body = 3)), "typeface name")
   expect_error(resolve_theme(report_theme(font.size = NA_real_)), "positive number")

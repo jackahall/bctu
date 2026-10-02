@@ -16,7 +16,8 @@ render_table(
   col_names = NULL,
   full_width = TRUE,
   bold_rows = NULL,
-  bold_headings = TRUE
+  bold_headings = TRUE,
+  autofit = FALSE
 )
 
 indent(x, levels = 1L)
@@ -48,6 +49,11 @@ every column, for example the primary outcome row of an outcome table.}
 
 \item{bold_headings}{When \code{TRUE} (default), unindented rows of an indented
 table are shown in bold. Set \code{FALSE} to bold only \code{bold_rows}.}
+
+\item{autofit}{When \code{TRUE}, the table is wrapped in an \verb{::: autofit} div,
+so in a \code{\link[=trial_report]{trial_report()}} Word fits each column to its contents (as Word's
+AutoFit Contents) instead of using the widths from \code{caps}. Default
+\code{FALSE}.}
 
 \item{x}{A character vector.}
 

@@ -16,7 +16,6 @@ HEADER_FOOTER_PLACEHOLDERS <- c(rIdHdr1 = "header1.xml", rIdHdr2 = "header2.xml"
                                 rIdFtr1 = "footer1.xml", rIdFtr2 = "footer2.xml")
 
 TWIP_EMU <- 635L
-A4_LONG_TWIPS <- 16838L
 A4_SHORT_TWIPS <- 11906L
 PAGE_MARGIN_TWIPS <- 2880L
 
@@ -143,8 +142,9 @@ bind_header_footer_ids <- function(document, rels, path) {
 #' Pandoc sizes every image against the portrait text width of the reference
 #' document, so a figure in a landscape section arrives at about two thirds
 #' of the page. Each image that fills the portrait text width and sits in a
-#' landscape section is scaled to the landscape text width, keeping its
-#' aspect ratio. Narrower images are left alone.
+#' wider section (A4 or A3 landscape) is scaled to that section's text width,
+#' read from its page size, keeping its aspect ratio. Narrower images are
+#' left alone.
 #'
 #' @param document The document.xml text.
 #' @return The document.xml text with the extents rewritten.
@@ -152,14 +152,14 @@ bind_header_footer_ids <- function(document, rels, path) {
 widen_landscape_images <- function(document) {
   FULL_WIDTH_FRACTION <- 0.98
   portrait_width <- (A4_SHORT_TWIPS - PAGE_MARGIN_TWIPS) * TWIP_EMU
-  landscape_width <- (A4_LONG_TWIPS - PAGE_MARGIN_TWIPS) * TWIP_EMU
 
   sections <- gregexpr("<w:sectPr[^>]*>.*?</w:sectPr>", document)[[1]]
   if (identical(as.integer(sections), -1L)) return(document)
   section_end <- as.integer(sections) + attr(sections, "match.length") - 1L
-  section_landscape <- grepl("w:orient=\"landscape\"",
-                             substring(document, as.integer(sections), section_end),
-                             fixed = TRUE)
+  section_text <- substring(document, as.integer(sections), section_end)
+  page_w <- vapply(regmatches(section_text, regexec('<w:pgSz w:w="([0-9]+)"', section_text)),
+                   function(m) if (length(m)) as.numeric(m[2]) else NA_real_, numeric(1))
+  section_width <- (page_w - PAGE_MARGIN_TWIPS) * TWIP_EMU
 
   drawings <- gregexpr("<w:drawing>.*?</w:drawing>", document)[[1]]
   if (identical(as.integer(drawings), -1L)) return(document)
@@ -168,7 +168,8 @@ widen_landscape_images <- function(document) {
 
   for (i in rev(seq_along(starts))) {
     following <- which(section_end > starts[i])
-    if (!length(following) || !section_landscape[following[1]]) next
+    if (!length(following) || !isTRUE(section_width[following[1]] > portrait_width)) next
+    landscape_width <- section_width[following[1]]
     block <- substring(document, starts[i], ends[i])
     extent <- regmatches(block, regexpr("cx=\"[0-9]+\" cy=\"[0-9]+\"", block))
     if (!length(extent)) next

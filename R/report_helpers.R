@@ -265,6 +265,10 @@ NULL
 #'   every column, for example the primary outcome row of an outcome table.
 #' @param bold_headings When `TRUE` (default), unindented rows of an indented
 #'   table are shown in bold. Set `FALSE` to bold only `bold_rows`.
+#' @param autofit When `TRUE`, the table is wrapped in an `::: autofit` div,
+#'   so in a [trial_report()] Word fits each column to its contents (as Word's
+#'   AutoFit Contents) instead of using the widths from `caps`. Default
+#'   `FALSE`.
 #' @return `render_table()`: `render_table()`: A single string holding the table (and caption).
 #' @examples
 #' tab <- data.frame(Characteristic = c("Sex", indent(c("Male", "Female"))),
@@ -272,7 +276,7 @@ NULL
 #' cat(render_table(tab, caption = "Baseline characteristics"))
 #' @export
 render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
-                         full_width = TRUE, bold_rows = NULL, bold_headings = TRUE) {
+                         full_width = TRUE, bold_rows = NULL, bold_headings = TRUE, autofit = FALSE) {
   FULL_WIDTH_CHARS <- 300L
   LEVEL_WIDTH <- 1L
   if (!is.data.frame(df)) cli::cli_abort("{.arg df} must be a data frame.")
@@ -330,5 +334,6 @@ render_table <- function(df, caps = NULL, caption = NULL, col_names = NULL,
 
   table <- grid_table(cells, widths, span_rows, levels)
   if (!is.null(caption)) table <- paste0("Table: ", caption, "\n\n", table)
+  if (autofit) table <- paste0("::: autofit\n\n", table, "\n\n:::\n")
   table
 }

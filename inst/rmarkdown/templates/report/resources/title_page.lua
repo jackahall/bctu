@@ -174,7 +174,7 @@ local function page_break()
     '<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
 end
 
--- A4 page size in twips: 11906 x 16838 (portrait) / 16838 x 11906 (landscape).
+-- Page sizes in twips: A4 11906 x 16838, A3 16838 x 23811 (portrait; swapped for landscape).
 -- Header/footer references use the *same* rId names as reference.docx's body
 -- sectPr (rIdHdr1/rIdHdr2/rIdFtr1/rIdFtr2). Pandoc renumbers those rIds when
 -- it writes document.xml.rels and rewrites the same rIds in raw OOXML blocks,
@@ -195,10 +195,13 @@ local function title_page_section_break()
     '</w:sectPr></w:pPr></w:p>')
 end
 
-local function body_section_break(orient)
+local PAPER_TWIPS = { a4 = { 11906, 16838 }, a3 = { 16838, 23811 } }
+
+local function body_section_break(orient, paper)
+  local short, long = table.unpack(PAPER_TWIPS[paper or "a4"])
   local pg_sz = orient == "landscape"
-    and '<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>'
-    or  '<w:pgSz w:w="11906" w:h="16838"/>'
+    and ('<w:pgSz w:w="' .. long .. '" w:h="' .. short .. '" w:orient="landscape"/>')
+    or  ('<w:pgSz w:w="' .. short .. '" w:h="' .. long .. '"/>')
   return pandoc.RawBlock("openxml",
     '<w:p><w:pPr><w:sectPr>' ..
     '<w:headerReference w:type="default" r:id="rIdHdr1"/>' ..
@@ -252,6 +255,9 @@ end
 -- - `::: landscape` divs are wrapped in section breaks so their content
 --   renders in landscape (the inversion is because a sectPr in a paragraph
 --   defines the section ENDING at that paragraph, not the one starting).
+--   `::: {.landscape .a3}` gives an A3 landscape section.
+-- - `::: autofit` divs give their tables default column widths, so Word
+--   fits each column to its contents.
 -- - Figures and Tables get sequential numbering and the caption is moved
 --   above the content, styled "ImageCaption" (figures) or "TableCaption"
 --   (tables) -- both styles already live in reference.docx. A figure's
@@ -281,6 +287,18 @@ end
 
 local function is_landscape_div(b)
   return b ~= nil and b.t == "Div" and b.classes:includes("landscape")
+end
+
+local function paper_of(b)
+  return b.classes:includes("a3") and "a3" or "a4"
+end
+
+local function is_autofit_div(b)
+  return b ~= nil and b.t == "Div" and b.classes:includes("autofit")
+end
+
+local function is_section_break(b)
+  return b ~= nil and b.t == "RawBlock" and b.text:find("<w:sectPr", 1, true) ~= nil
 end
 
 local function is_footnote_div(b)
@@ -320,6 +338,7 @@ end
 
 -- `opens_section`: the blocks start a new section (the front matter ended in a
 -- section break), so a leading landscape div needs no portrait break before it.
+-- Nor does a landscape div straight after another section break.
 local function process_blocks(blocks, counters, opens_section)
   local out = pandoc.Blocks({})
   local i = next_content(blocks, 1)
@@ -327,15 +346,27 @@ local function process_blocks(blocks, counters, opens_section)
     local b = blocks[i]
     if is_page_break(b) and is_landscape_div(blocks[skip_page_break(blocks, i)]) then
       i = next_content(blocks, i + 1)
+    elseif is_autofit_div(b) then
+      -- default column widths: Word sizes the columns to their contents
+      for _, inner in ipairs(b.content) do
+        if inner.t == "Table" then
+          for k, cs in ipairs(inner.colspecs) do inner.colspecs[k] = { cs[1], pandoc.ColWidthDefault } end
+        end
+      end
+      blocks:remove(i)
+      for k = #b.content, 1, -1 do blocks:insert(i, b.content[k]) end
+      i = next_content(blocks, i)
     elseif is_landscape_div(b) then
-      if not (opens_section and #out == 0) then out:insert(body_section_break("portrait")) end
+      local at_section_start = (#out == 0 and opens_section) or is_section_break(out[#out])
+      if not at_section_start then out:insert(body_section_break("portrait")) end
+      local paper = paper_of(b)
       local j = i
       local following = skip_page_break(blocks, j + 1)
       while true do
         for _, inner in ipairs(process_blocks(blocks[j].content, counters)) do
           out:insert(inner)
         end
-        if is_landscape_div(blocks[following]) then
+        if is_landscape_div(blocks[following]) and paper_of(blocks[following]) == paper then
           out:insert(page_break())
           j = following
           following = skip_page_break(blocks, j + 1)
@@ -343,7 +374,7 @@ local function process_blocks(blocks, counters, opens_section)
           break
         end
       end
-      out:insert(body_section_break("landscape"))
+      out:insert(body_section_break("landscape", paper))
       i = following
     elseif b.t == "Figure" then
       counters.fig = counters.fig + 1

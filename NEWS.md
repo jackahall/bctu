@@ -1,3 +1,12 @@
+# bctu 0.28.3
+
+## Changes
+
+* `render_table(autofit = TRUE)` wraps the table in an `::: autofit` div. In a `trial_report()`, Word then fits each column to its contents, as Word's AutoFit Contents does.
+* `::: {.landscape .a3}` gives an A3 landscape section in a `trial_report()`. Adjacent landscape divs merge only when their paper sizes match.
+* Full-width images are widened to their own section's text width, so they fill A3 as well as A4 landscape pages.
+* A landscape section straight after another section break no longer gets an empty portrait section before it.
+
 # bctu 0.28.2
 
 ## Changes
